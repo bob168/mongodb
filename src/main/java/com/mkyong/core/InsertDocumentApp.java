@@ -26,7 +26,7 @@ import com.mongodb.Mongo;
 import com.mongodb.MongoException;
  
 /**
- * Java MongoDB : Insert a Document
+ * Java MongoDB : Insert a Document into collection
  * 
  */
 public class InsertDocumentApp {
