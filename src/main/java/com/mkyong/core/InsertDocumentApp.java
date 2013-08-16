@@ -5,13 +5,10 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.bson.types.ObjectId;
 import org.junit.Test;
@@ -34,15 +31,14 @@ public class InsertDocumentApp {
 	private static final ObjectId _idGenerator = new ObjectId();
 	private static Map<String, String> AcctMappping = new HashMap<String, String>();
 	private static Map<String, Integer> AcctScoring = new HashMap<String, Integer>();
-	private static Map<String, String> AcctNameMapping = new HashMap<String, String>();
 	private static final String ipAddr = "localhost";
 	
 	@Test
 	public void insert() throws Exception {
 
-		appendHealthScore("/data/mydata/mahout/dataset/hostAnalytics/productData/endUserNEventCounts2.tsv");
-		insertBNAaccountObject("/data/mydata/mahout/dataset/hostAnalytics/productData/bnaAcctsData.tsv");
-//		insertBNAenduserObject("/data/mydata/mahout/dataset/hostAnalytics/productData/acctnamesNuser.tsv");
+		appendHealthScore("/data/mydata/mahout/dataset/hostAnalytics/finalProductionOutputData/acctHealthScoreOut.tsv");
+		insertBNAaccountObject("/data/mydata/mahout/dataset/hostAnalytics/finalProductionOutputData/acctsFromAcctOutMRR.tsv");
+		insertBNAenduserObject("/data/mydata/mahout/dataset/hostAnalytics/finalProductionOutputData/usageEnduserOut.tsv");
 		
 //		for (Entry<String, String> entry : AcctMappping.entrySet())
 //			System.out.printf("%s\t%s\n", entry.getKey(), entry.getValue());;
@@ -55,7 +51,7 @@ public class InsertDocumentApp {
 			Mongo mongo = new Mongo(ipAddr, 27017);
 			DB db = mongo.getDB("bow");
 
-			DBCollection user = db.getCollection("account");
+			DBCollection user = db.getCollection("endUser");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
@@ -67,19 +63,19 @@ public class InsertDocumentApp {
 			System.out.println(user.count());
 			cursor.close();
 			
-			DBCollection account = db.getCollection("account");
-			whereQuery = new BasicDBObject();
+//			DBCollection account = db.getCollection("account");
+//			whereQuery = new BasicDBObject();
+////			whereQuery.put("name", "mirion technologies inc");
 //			whereQuery.put("name", "mirion technologies inc");
-			whereQuery.put("name", "mirion technologies inc");
-//			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
-			
-			DBCursor cursorDoc = account.find(whereQuery);
-			while (cursorDoc.hasNext()) {
-				System.out.println(cursorDoc.next());
-			}
-
-			System.out.println(account.count());
-			cursorDoc.close();
+////			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
+//			
+//			DBCursor cursorDoc = account.find(whereQuery);
+//			while (cursorDoc.hasNext()) {
+//				System.out.println(cursorDoc.next());
+//			}
+//
+//			System.out.println(account.count());
+//			cursorDoc.close();
 			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -105,18 +101,19 @@ public class InsertDocumentApp {
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
 			
 			String line = null;
-			line = br.readLine();
 
 		    int redCnt = 0;
 		    int greenCnt = 0;
 		    int yellowCnt = 0;
+		    double maxScore = 273056.0;
 		    
 			while (threshold-- > 0 && (line = br.readLine()) != null) {
 
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAacct acct = new BNAacct(line);
 				mydbObject.put("_id", acct.get_id());
-				mydbObject.put("annualSpend", acct.getAnnualSpend());
+				mydbObject.put("arr", acct.getArr());
+				mydbObject.put("mrr", acct.getMrr());
 				mydbObject.put("csmName", acct.getCsmName());
 				mydbObject.put("salesLead", acct.getSalesLead());
 				mydbObject.put("endUserCount", acct.getEndUserCount());
@@ -125,20 +122,19 @@ public class InsertDocumentApp {
 				mydbObject.put("region", acct.getRegion());
 				mydbObject.put("stage", acct.getStage());
 				mydbObject.put("tier", acct.getTier());
-				String uAcctName = getSimilarAcctFromUsage(acct.getName());
-				Integer score = AcctScoring.get(uAcctName);
+				Integer score = AcctScoring.get(acct.getName());
 				if (score == null) {
 					System.out.printf("no mapping acct for %s\n", acct.getName());
 					score = 0;
 				}	
 				
-		    	Double fVal = 100.0 * Math.exp((1.0 * score)/3792.0)/Math.exp(1);
+		    	Double fVal = 100.0 * (1.0 * score)/maxScore;
 		    	String scoreCard = "atRisk";
-		    	if (fVal.compareTo(41.5) > 0) {
+		    	if (fVal.compareTo(7.6) > 0) {
 		    		scoreCard = "stable";
 		    		greenCnt++;
 		    	}
-		    	else if (fVal.compareTo(37.0) > 0) {
+		    	else if (fVal.compareTo(0.08) > 0) {
 		    		scoreCard = "nearAtRisk";
 		    		yellowCnt++;	
 		    	}
@@ -146,8 +142,7 @@ public class InsertDocumentApp {
 		    		redCnt++;
 		    	
 				mydbObject.put("healthScore", scoreCard);
-				
-				AcctMappping.put(acct.getName(), acct.get_id().toString());
+				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
 								
 				feeds.add(mydbObject);
 				mydbObject = null;
@@ -169,7 +164,7 @@ public class InsertDocumentApp {
 			
 			float total = redCnt + yellowCnt + greenCnt;
 		    System.out.printf("RED=%f\tYELLOW=%f\tGREEN=%f\n", 100.0*redCnt/total, 100.0*yellowCnt/total, 100.0*greenCnt/total);
-		    
+
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (MongoException e) {
@@ -285,64 +280,6 @@ public class InsertDocumentApp {
 			e.printStackTrace();
 		}
 	}
-
-	static String getSimilarAcctFromAcct(final String uAcctName) {
-		String matchedName = uAcctName;
-		String uAcctNameNew = uAcctName.replaceAll(" ", "");
-		
-		int count = 0;
-		int maxMatches = 0;
-		String[] words = null;
-		for (String aAcctName : AcctMappping.keySet()) {
-			count = 0;
-			
-			if (aAcctName.contains("aaxico"))
-				count = 0;
-			
-			words = adjustedName(aAcctName).split(" ");
-			for (String word : words) {
-				if (word == null || word.isEmpty())
-					continue;
-				
-				if (uAcctNameNew.contains(word))
-					count++;
-			}
-			
-			if (count > maxMatches)
-				matchedName = aAcctName;
-		}
-		
-		return matchedName;
-	}
-
-
-	static String getSimilarAcctFromUsage(final String acctName) {
-		String matchedName = acctName;
-		String acctNameNew = acctName.replaceAll(" ", "");
-		
-		int count = 0;
-		int maxMatches = 0;
-		String[] words = null;
-		for (String uAcctName : AcctScoring.keySet()) {
-			count = 0;
-			
-			words = adjustedName(uAcctName).split(" ");
-			for (String word : words) {
-				if (word == null || word.isEmpty())
-					continue;
-				
-				if (acctNameNew.contains(word))
-					count++;
-			}
-			
-			if (count > maxMatches)
-				matchedName = uAcctName;
-		}
-		
-		AcctNameMapping.put(matchedName, acctName);
-		
-		return matchedName;
-	}
 	
 	void appendHealthScore(String srcFile) throws IOException {
 
@@ -354,7 +291,7 @@ public class InsertDocumentApp {
 		
 		while ((line = br.readLine()) != null) {
 			splits = line.split("\t");
-			String acctName = splits[1].trim();
+			String acctName = splits[2].trim();
 			// TODO:: change into String for float into integer
 			Integer score = Integer.parseInt(splits[0]);
 			
@@ -381,7 +318,6 @@ public class InsertDocumentApp {
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
 			
 			String line = null;
-			line = br.readLine();
 			int total = 0;
 			int invalid = 0;
 			
@@ -447,28 +383,18 @@ public class InsertDocumentApp {
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != 3)
+			if (splits.length != 4)
 				return;
 			
-			String uAcctName = splits[0].trim();
 			this.name = splits[2];
-			
 			this._id = new ObjectId();
 
-			String acctId = AcctMappping.get(getSimilarAcctFromAcct(uAcctName));
-			if (uAcctName.contains("mirion"))
-				System.out.printf("mirion:: uAcctName=%s\taAcctName=%s\n", 
-						uAcctName, 
-						getSimilarAcctFromAcct(uAcctName));
-			
-			if (acctId == null) {
-				this.accountId = null;
-				System.out.printf("invalid uAcctName=%s\taAcctName=%s\n", 
-						uAcctName, 
-						getSimilarAcctFromAcct(uAcctName));
+			String acctId = splits[0].trim();
+			if (AcctMappping.get(acctId) == null) {
+				System.out.println("no objectId for " + acctId);
 			}
 			else
-				this.accountId = new ObjectId(acctId);
+				this.accountId = new ObjectId(AcctMappping.get(acctId));
 		}
 
 		public Object get_id() {
@@ -483,62 +409,17 @@ public class InsertDocumentApp {
 
 	}
 	
-	static Set<String> StopWords = new HashSet<String>();
-	
-	static {
-		StopWords.add("inc");
-		StopWords.add("group");
-		StopWords.add("limited");
-		StopWords.add("ltd");
-		StopWords.add("global");
-		StopWords.add("technologies");
-		StopWords.add("company");
-		StopWords.add("co");
-		StopWords.add("corp");
-		StopWords.add("the");
-		StopWords.add("new");
-		StopWords.add("old");
-		StopWords.add("a");
-		StopWords.add("and");
-		StopWords.add("llc");
-		StopWords.add("l.l.c");
-		StopWords.add("international");
-		StopWords.add("incorporated");
-		StopWords.add("corporation");
-	}
-	
-	static String adjustedName(String name) {
-		StringBuilder buf = new StringBuilder();
-		
-		List<String> words = new ArrayList<String>();
-		
-		if (name != null && name.isEmpty() == false) {
-			String[] splits = name.split(" ");
-			
-			for (String word : splits) {
-				if (word.isEmpty())
-					continue;
-				
-				if (StopWords.contains(word) == false)
-					words.add(word);
-			}
-		}
-		
-		for (String word : words)
-			buf.append(word).append(" ");
-		
-		return buf.toString().trim();
-	}
-	
 	public static class BNAacct {
 		private Object _id = null;
-		private String name = null;
+		private String acctId = null;
+		private String acctName = null;
 		private String csmName = null;
 		private String salesLead = null;
 		private String location = null;
 		private String region = null;
 		private String endUserCount = null;
-		private String annualSpend = null;
+		private String mrr = null;
+		private String arr = null;
 		private String tier = null;
 		private String stage = null;
 		
@@ -547,18 +428,21 @@ public class InsertDocumentApp {
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != 9)
+			if (splits.length != 14)
 				return;
 			
-			this.name = splits[0].trim();
-			this.csmName = splits[1];
-			this.salesLead = splits[2];
-			this.location = splits[3];
-			this.region = splits[4];
-			this.endUserCount = splits[5];
-			this.annualSpend = splits[6];
-			this.tier = splits[7];
-			this.stage = splits[8];
+			this.acctId = splits[0].trim();
+			this.acctName = splits[1].trim();
+			this.csmName = splits[2].trim();
+			this.salesLead = splits[3];
+			this.location = splits[4];
+			this.region = splits[5];
+			this.endUserCount = splits[6];
+			this.mrr = splits[7];
+			float mrrFlot = Float.parseFloat(mrr);
+			this.arr = String.valueOf(12.0 * mrrFlot);
+			this.tier = splits[8];
+			this.stage = splits[9];
 			
 			this._id = new ObjectId();
 		}
@@ -566,8 +450,14 @@ public class InsertDocumentApp {
 		public Object get_id() {
 			return _id;
 		}
+		public String getAcctId() {
+			return acctId;
+		}
+		public String getAcctName() {
+			return acctName;
+		}
 		public String getName() {
-			return name;
+			return acctName;
 		}
 		public String getCsmName() {
 			return csmName;
@@ -584,8 +474,11 @@ public class InsertDocumentApp {
 		public String getEndUserCount() {
 			return endUserCount;
 		}
-		public String getAnnualSpend() {
-			return annualSpend;
+		public String getMrr() {
+			return mrr;
+		}
+		public String getArr() {
+			return arr;
 		}
 		public String getTier() {
 			return tier;
