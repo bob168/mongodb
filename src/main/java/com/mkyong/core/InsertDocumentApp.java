@@ -31,14 +31,15 @@ public class InsertDocumentApp {
 	private static final ObjectId _idGenerator = new ObjectId();
 	private static Map<String, String> AcctMappping = new HashMap<String, String>();
 	private static Map<String, Integer> AcctScoring = new HashMap<String, Integer>();
-	private static final String ipAddr = "localhost";
+	private static final String ipAddr = "10.0.1.8";
+	private static final String dbName = "bow-fa8e12345678900000000001";
 	
 	@Test
 	public void insert() throws Exception {
 
-		appendHealthScore("/data/mydata/mahout/dataset/hostAnalytics/finalProductionOutputData/acctHealthScoreOut.tsv");
-		insertBNAaccountObject("/data/mydata/mahout/dataset/hostAnalytics/finalProductionOutputData/acctsFromAcctOutMRR.tsv");
-		insertBNAenduserObject("/data/mydata/mahout/dataset/hostAnalytics/finalProductionOutputData/usageEnduserOut.tsv");
+		appendHealthScore("/Users/borongzhou/test/finalProductionOutputData/acctHealthScoreOut.tsv");
+		insertBNAaccountObject("/Users/borongzhou/test/finalProductionOutputData/acctsFromAcctOutMRR.tsv");
+		insertBNAenduserObject("/Users/borongzhou/test/finalProductionOutputData/usageEnduserOut.tsv");
 		
 //		for (Entry<String, String> entry : AcctMappping.entrySet())
 //			System.out.printf("%s\t%s\n", entry.getKey(), entry.getValue());;
@@ -49,9 +50,9 @@ public class InsertDocumentApp {
 
 		try {
 			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB("bow");
+			DB db = mongo.getDB(dbName);
 
-			DBCollection user = db.getCollection("endUser");
+			DBCollection user = db.getCollection("account");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
@@ -88,7 +89,7 @@ public class InsertDocumentApp {
 
 		try {
 			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB("bow");
+			DB db = mongo.getDB(dbName);
 
 			DBCollection table = db.getCollection("account");
 			table.drop();
@@ -305,7 +306,7 @@ public class InsertDocumentApp {
 
 		try {
 			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB("bow");
+			DB db = mongo.getDB(dbName);
 
 			DBCollection table = db.getCollection("endUser");
 			table.drop();
