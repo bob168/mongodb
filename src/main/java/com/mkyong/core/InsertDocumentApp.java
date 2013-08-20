@@ -5,16 +5,22 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 
 import org.bson.types.ObjectId;
 import org.junit.Test;
 
 import com.google.gson.Gson;
 import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -30,20 +36,148 @@ public class InsertDocumentApp {
 	
 	private static final ObjectId _idGenerator = new ObjectId();
 	private static Map<String, String> AcctMappping = new HashMap<String, String>();
-	private static Map<String, Integer> AcctScoring = new HashMap<String, Integer>();
-	private static final String ipAddr = "10.0.1.8";
-	private static final String dbName = "bow-fa8e12345678900000000001";
+	private static Map<String, Double> AcctScoring = new HashMap<String, Double>();
+	private static final String ipAddr = "10.0.1.114"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-fa8e12345678900000000000";
+	private static double maxScore = 1.0;
+	private Map<String, LinkedHashSet<Health>> acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
+	private Map<String, LinkedHashSet<Health>> usersHScores = new HashMap<String, LinkedHashSet<Health>>();;
+	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");		
+	private static final Gson GSON = new Gson();
 	
 	@Test
 	public void insert() throws Exception {
 
-		appendHealthScore("/Users/borongzhou/test/finalProductionOutputData/acctHealthScoreOut.tsv");
-		insertBNAaccountObject("/Users/borongzhou/test/finalProductionOutputData/acctsFromAcctOutMRR.tsv");
-		insertBNAenduserObject("/Users/borongzhou/test/finalProductionOutputData/usageEnduserOut.tsv");
+		/**
+		 * 
+		 LinkedHashSet<Health> healthscores = new LinkedHashSet<Health>()
+		 
+		 Health object:
+		 ObjectId id
+		 Date created
+		 String score   // integer [0, 100]
+		 String scoreType == "auto", or "manual"
+		 
+		 *
+		 */
+		// TODO:: score = 100.0*eventNum / 621.0*custNum  for account
+		insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/acctHealthScoreTS.tsv");
+		insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
+		acctsHScores.clear();
+		acctsHScores = null;
 		
-//		for (Entry<String, String> entry : AcctMappping.entrySet())
-//			System.out.printf("%s\t%s\n", entry.getKey(), entry.getValue());;
+		//        score = 100*eventNum/32.1 for enduser
+		insertUserHealthScore("/Users/borongzhou/test/hostAnalysis/endUserHealthScoreMonthly.tsv");
+		insertBNAenduserObject("/Users/borongzhou/test/hostAnalysis/usageEnduserOut.tsv");
+		usersHScores.clear();
+		usersHScores = null;
+		
 	}
+
+	// TODO:: score = 100.0*eventNum / 621.0*custNum  for account
+	void insertAcctHealthScore(String srcFile) throws IOException, ParseException {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = null;
+		String[] splits = null;
+
+		LinkedHashSet<Health> list = null;
+		Health score = null;
+		Integer eventNum = 0;
+		Integer custNum = 1;
+		long maxVal = 0;
+		long scoreInt = 0;
+
+		Random rm = new Random(new Date().getTime());
+		while ((line = br.readLine()) != null) {
+			if (line.contains("eventNum"))
+				continue;
+			
+			splits = line.split("\t");
+			eventNum = Integer.parseInt(splits[0]);
+			custNum = Integer.parseInt(splits[1]);
+			custNum = (custNum == null)? 1 : custNum;
+			String acctId = splits[2].trim();
+			list = acctsHScores.get(acctId);
+			if (list == null) {
+				list = new LinkedHashSet<Health>();
+				acctsHScores.put(acctId, list);
+			}
+			score = new Health();
+			scoreInt = Math.round(100.0*eventNum / (621.0*custNum)); 
+			scoreInt = (scoreInt > 100)? (95 + (scoreInt % 5)) : scoreInt;
+			scoreInt = Math.abs((scoreInt < 10)? (rm.nextLong() % 10 + 1) : scoreInt);
+			score.setScore(String.valueOf(scoreInt));
+			score.setCreated(sFormat.parse(splits[4] + "01"));
+
+			maxVal = (maxVal < scoreInt)? scoreInt : maxVal;
+			
+			score.put("_id", score._id);
+			score.put("created", score.created);
+			score.put("score", score.score);
+			score.put("scoreType", score.scoreType);
+			
+			list.add(score);
+//			System.out.println(score);
+		}
+
+		br.close();
+		
+		System.out.printf("max Value %d\n", maxVal);
+	}
+
+
+	//  score = 100*eventNum/32.1 for enduser
+	void insertUserHealthScore(String srcFile) throws IOException, ParseException {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = br.readLine();
+		String[] splits = null;
+		LinkedHashSet<Health> list = null;
+		Health score = null;
+		Double eventNum = 0.0;
+		Double maxVal = 0.0;
+		long longVal;
+		// eventNum        acctId  userName        month
+		while ((line = br.readLine()) != null) {
+			if (line.contains("eventNum"))
+				continue;
+			
+			splits = line.split("\t");
+			eventNum = Double.parseDouble(splits[0]);
+		
+			String userName = splits[2].trim();
+			list = usersHScores.get(userName);
+			if (list == null) {
+				list = new LinkedHashSet<Health>();
+				usersHScores.put(userName, list);
+			}
+			longVal = Math.round(100*eventNum / 32.1);
+			maxVal = (maxVal < longVal)? longVal : maxVal;
+			score = new Health();
+			score.setScore(String.valueOf(longVal));
+			score.setCreated(sFormat.parse(splits[3] + "01"));
+
+			score.put("_id", score._id);
+			score.put("created", score.created);
+			score.put("score", score.score);
+			score.put("scoreType", score.scoreType);
+			
+//			System.out.println(score);
+			
+			list.add(score);
+		}
+
+		br.close();
+
+		System.out.printf("max Value %f\n", maxVal);
+
+	}
+
 
 	@Test
 	public void retrieve() {
@@ -52,7 +186,7 @@ public class InsertDocumentApp {
 			Mongo mongo = new Mongo(ipAddr, 27017);
 			DB db = mongo.getDB(dbName);
 
-			DBCollection user = db.getCollection("account");
+			DBCollection user = db.getCollection("endUser");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
@@ -85,6 +219,42 @@ public class InsertDocumentApp {
 		}
 	}
 
+	public static class Health extends BasicDBObject {
+		
+		public ObjectId _id = new ObjectId();
+		public Date created = null;
+		public String score = "0";
+		public String scoreType = "auto";
+		
+		public ObjectId get_id() {
+			return _id;
+		}
+		public Date getCreated() {
+			return created;
+		}
+		public void setCreated(Date created) {
+			this.created = created;
+		}
+		public String getScore() {
+			return score;
+		}
+		public void setScore(String score) {
+			this.score = score;
+		}
+		public String getScoreType() {
+			return scoreType;
+		}
+		public void setScoreType(String scoreType) {
+			this.scoreType = scoreType;
+		}
+		
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+	}
+	
 	void insertBNAaccountObject(String srcFile) throws Exception {
 
 		try {
@@ -101,13 +271,7 @@ public class InsertDocumentApp {
 			File sFile = new File(srcFile);
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
 			
-			String line = null;
-
-		    int redCnt = 0;
-		    int greenCnt = 0;
-		    int yellowCnt = 0;
-		    double maxScore = 273056.0;
-		    
+			String line = null;		    
 			while (threshold-- > 0 && (line = br.readLine()) != null) {
 
 				BasicDBObject mydbObject = new BasicDBObject();
@@ -123,26 +287,10 @@ public class InsertDocumentApp {
 				mydbObject.put("region", acct.getRegion());
 				mydbObject.put("stage", acct.getStage());
 				mydbObject.put("tier", acct.getTier());
-				Integer score = AcctScoring.get(acct.getName());
-				if (score == null) {
-					System.out.printf("no mapping acct for %s\n", acct.getName());
-					score = 0;
-				}	
+				mydbObject.put("healthscores", acctsHScores.get(acct.getAcctId()));
 				
-		    	Double fVal = 100.0 * (1.0 * score)/maxScore;
-		    	String scoreCard = "atRisk";
-		    	if (fVal.compareTo(7.6) > 0) {
-		    		scoreCard = "stable";
-		    		greenCnt++;
-		    	}
-		    	else if (fVal.compareTo(0.08) > 0) {
-		    		scoreCard = "nearAtRisk";
-		    		yellowCnt++;	
-		    	}
-		    	else 
-		    		redCnt++;
-		    	
-				mydbObject.put("healthScore", scoreCard);
+				
+
 				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
 								
 				feeds.add(mydbObject);
@@ -162,9 +310,6 @@ public class InsertDocumentApp {
 			}
 			
 			br.close();
-			
-			float total = redCnt + yellowCnt + greenCnt;
-		    System.out.printf("RED=%f\tYELLOW=%f\tGREEN=%f\n", 100.0*redCnt/total, 100.0*yellowCnt/total, 100.0*greenCnt/total);
 
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -175,113 +320,64 @@ public class InsertDocumentApp {
 		}
 	}
 
-	public static void main(String[] args) {
-
-		double d3 = Math.exp(1.0/2.0);
-		System.out.println(String.valueOf(d3));
-	}
-	
-	
-	public static void main2(String[] args) {
-
+	public static void main(String[] args)  {
+		
 		try {
-
 			Mongo mongo = new Mongo("localhost", 27017);
 			DB db = mongo.getDB("bow");
 
-			DBCollection collection = db.getCollection("accts");
+			DBCollection collection = db.getCollection("hosting");
 			collection.drop();
-			collection = db.getCollection("accts");
+			collection = db.getCollection("hosting");
 
-			// 1. BasicDBObject example
-			System.out.println("BasicDBObject example...");
-			BasicDBObject document = new BasicDBObject();
-			document.put("_id", _idGenerator.get());
-			document.put("database", "mkyongDB");
-			document.put("table", "hosting");
+			// 2. BasicDBObjectBuilder example
+			System.out.println("BasicDBObjectBuilder example...");
+			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
+					.add("database", "bow").add("table", "hosting");
 
-			BasicDBObject documentDetail = new BasicDBObject();
-			documentDetail.put("_id", _idGenerator.get());
-			documentDetail.put("records", 99);
-			documentDetail.put("index", "vps_index1");
-			documentDetail.put("active", "true");
-			document.put("detail", documentDetail);
+			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
+					.start().add("_id", new ObjectId()).add("records", "99")
+					.add("index", "vps_index1").add("active", "true");
 
-			collection.insert(document);
+			documentBuilder.add("detail", documentBuilderDetail.get());
 
-			DBCursor cursorDoc = collection.find();
-			while (cursorDoc.hasNext()) {
-				System.out.println(cursorDoc.next());
+			collection.insert(documentBuilder.get());
+
+			DBCursor cursorDocBuilder = collection.find();
+			while (cursorDocBuilder.hasNext()) {
+				System.out.println(cursorDocBuilder.next());
+			}
+
+			collection.remove(new BasicDBObject());
+			
+			
+			// 3. Map example
+			System.out.println("Map example...");
+			Map<String, Object> documentMap = new HashMap<String, Object>();
+			documentMap.put("database", "bow");
+			documentMap.put("table", "hosting");
+
+			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
+			documentMapDetail.put("records", "99");
+			documentMapDetail.put("index", "vps_index1");
+			documentMapDetail.put("active", "true");
+
+			documentMap.put("detail", documentMapDetail);
+
+			collection.insert(new BasicDBObject(documentMap));
+
+			DBCursor cursorDocMap = collection.find();
+			while (cursorDocMap.hasNext()) {
+				System.out.println(cursorDocMap.next());
 			}
 
 			collection.remove(new BasicDBObject());
 
-			// 2. BasicDBObjectBuilder example
-			System.out.println("BasicDBObjectBuilder example...");
-//			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
-//					.add("database", "mkyongDB").add("table", "hosting");
-//
-//			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
-//					.start().add("records", "99").add("index", "vps_index1")
-//					.add("active", "true");
-//
-//			documentBuilder.add("detail", documentBuilderDetail.get());
-//
-//			collection.insert(documentBuilder.get());
-//
-//			DBCursor cursorDocBuilder = collection.find();
-//			while (cursorDocBuilder.hasNext()) {
-//				System.out.println(cursorDocBuilder.next());
-//			}
-//
-//			collection.remove(new BasicDBObject());
-//
-//			// 3. Map example
-//			System.out.println("Map example...");
-//			Map<String, Object> documentMap = new HashMap<String, Object>();
-//			documentMap.put("database", "mkyongDB");
-//			documentMap.put("table", "hosting");
-//
-//			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
-//			documentMapDetail.put("records", "99");
-//			documentMapDetail.put("index", "vps_index1");
-//			documentMapDetail.put("active", "true");
-//
-//			documentMap.put("detail", documentMapDetail);
-//
-//			collection.insert(new BasicDBObject(documentMap));
-//
-//			DBCursor cursorDocMap = collection.find();
-//			while (cursorDocMap.hasNext()) {
-//				System.out.println(cursorDocMap.next());
-//			}
-//
-//			collection.remove(new BasicDBObject());
-//
-//			// 4. JSON parse example
-//			System.out.println("JSON parse example...");
-//
-//			String json = "{'database' : 'mkyongDB','table' : 'hosting',"
-//					+ "'detail' : {'records' : 99, 'index' : 'vps_index1', 'active' : 'true'}}}";
-//
-//			DBObject dbObject = (DBObject) JSON.parse(json);
-//
-//			collection.insert(dbObject);
-//
-//			DBCursor cursorDocJSON = collection.find();
-//			while (cursorDocJSON.hasNext()) {
-//				System.out.println(cursorDocJSON.next());
-//			}
-//
-//			collection.remove(new BasicDBObject());
-			
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (MongoException e) {
-			e.printStackTrace();
+		} catch(Throwable ex) {
+			ex.printStackTrace(System.out);
 		}
 	}
-	
+		
 	void appendHealthScore(String srcFile) throws IOException {
 
 		File sFile = new File(srcFile);
@@ -292,10 +388,10 @@ public class InsertDocumentApp {
 		
 		while ((line = br.readLine()) != null) {
 			splits = line.split("\t");
-			String acctName = splits[2].trim();
+			String acctName = splits[3].trim();
 			// TODO:: change into String for float into integer
-			Integer score = Integer.parseInt(splits[0]);
-			
+			Double score = (1.0*Integer.parseInt(splits[0]))/(1.0*Integer.parseInt(splits[1]));
+			maxScore = (maxScore < score)? score : maxScore;
 			AcctScoring.put(acctName, score);
 		}
 		
@@ -335,7 +431,9 @@ public class InsertDocumentApp {
 				
 				mydbObject.put("_id", ensuser.get_id());
 				mydbObject.put("accountId", ensuser.getAccountId());
-				mydbObject.put("name", ensuser.getName());				
+				mydbObject.put("name", ensuser.getName());	
+				mydbObject.put("healthscores", usersHScores.get(ensuser.getName()));
+				
 				feeds.add(mydbObject);
 				mydbObject = null;
 				
@@ -490,7 +588,7 @@ public class InsertDocumentApp {
 
 		@Override
 		public String toString() {
-			return new Gson().toJson(this);
+			return GSON.toJson(this);
 		}
 	}
 	
@@ -533,7 +631,7 @@ public class InsertDocumentApp {
 		
 		@Override
 		public String toString() {
-			return new Gson().toJson(this);
+			return GSON.toJson(this);
 		}
 	}
 	
