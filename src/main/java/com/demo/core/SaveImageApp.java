@@ -1,4 +1,4 @@
-package com.mkyong.core;
+package com.demo.core;
 
 import java.io.File;
 import java.io.IOException;

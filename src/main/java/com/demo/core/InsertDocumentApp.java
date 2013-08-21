@@ -1,4 +1,4 @@
-package com.mkyong.core;
+package com.demo.core;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -16,6 +16,8 @@ import java.util.Map;
 import java.util.Random;
 
 import org.bson.types.ObjectId;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 
 import com.google.gson.Gson;
@@ -35,46 +37,70 @@ import com.mongodb.MongoException;
 public class InsertDocumentApp {
 	
 	private static final ObjectId _idGenerator = new ObjectId();
-	private static Map<String, String> AcctMappping = new HashMap<String, String>();
-	private static Map<String, Double> AcctScoring = new HashMap<String, Double>();
-	private static final String ipAddr = "10.0.1.114"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-fa8e12345678900000000000";
+	private static Map<String, String> AcctMappping = null;
+	private static Map<String, Double> AcctScoring = null;
+	private static Map<String, FirstLastEvent> AcctDates = null;
+	private static Map<String, FirstLastEvent> UserDates = null;
+	private static final String ipAddr = "localhost"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow"; //"bow-fa8e12345678900000000000";
 	private static double maxScore = 1.0;
-	private Map<String, LinkedHashSet<Health>> acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
-	private Map<String, LinkedHashSet<Health>> usersHScores = new HashMap<String, LinkedHashSet<Health>>();;
-	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");		
+	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
+	private Map<String, LinkedHashSet<Health>> usersHScores = null;
+	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
+	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
 	private static final Gson GSON = new Gson();
-	
+
 	@Test
 	public void insert() throws Exception {
 
-		/**
-		 * 
-		 LinkedHashSet<Health> healthscores = new LinkedHashSet<Health>()
-		 
-		 Health object:
-		 ObjectId id
-		 Date created
-		 String score   // integer [0, 100]
-		 String scoreType == "auto", or "manual"
-		 
-		 *
-		 */
-		// TODO:: score = 100.0*eventNum / 621.0*custNum  for account
+		loadEvents();
 		insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/acctHealthScoreTS.tsv");
 		insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
 		acctsHScores.clear();
-		acctsHScores = null;
+		acctsHScores = null;		
 		
-		//        score = 100*eventNum/32.1 for enduser
 		insertUserHealthScore("/Users/borongzhou/test/hostAnalysis/endUserHealthScoreMonthly.tsv");
 		insertBNAenduserObject("/Users/borongzhou/test/hostAnalysis/usageEnduserOut.tsv");
+
+		usersHScores.clear();
+		usersHScores = null;
+	}
+
+	@Before
+	public void setup() {
+		AcctDates = new HashMap<String, FirstLastEvent>();
+		UserDates = new HashMap<String, FirstLastEvent>();
+		AcctMappping = new HashMap<String, String>();
+		AcctScoring = new HashMap<String, Double>();
+		acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
+		usersHScores = new HashMap<String, LinkedHashSet<Health>>();
+	}
+	
+	@After
+	public void teranDown() {
+
+		AcctDates.clear();
+		AcctDates = null;
+
+		UserDates.clear();
+		UserDates = null;
+		
+		AcctMappping.clear();
+		AcctMappping = null;
+		
+		AcctScoring.clear();
+		AcctScoring = null;
+
+		acctsHScores.clear();
+		acctsHScores = null;
+
 		usersHScores.clear();
 		usersHScores = null;
 		
+		sFormat = null;
+		usageDateFormat = null;
 	}
-
-	// TODO:: score = 100.0*eventNum / 621.0*custNum  for account
+	
 	void insertAcctHealthScore(String srcFile) throws IOException, ParseException {
 
 		File sFile = new File(srcFile);
@@ -129,7 +155,6 @@ public class InsertDocumentApp {
 	}
 
 
-	//  score = 100*eventNum/32.1 for enduser
 	void insertUserHealthScore(String srcFile) throws IOException, ParseException {
 
 		File sFile = new File(srcFile);
@@ -192,7 +217,8 @@ public class InsertDocumentApp {
 //			whereQuery.put("name", "vamsi krishna"); 
 //			whereQuery.put("accountId", new ObjectId("52051655e4b0b995b2e11c62")); 
 			DBCursor cursor = user.find(whereQuery);
-			while (cursor.hasNext()) {
+			int count = 100;
+			while (count-- > 0 && cursor.hasNext()) {
 				System.out.println(cursor.next());
 			}
 			System.out.println(user.count());
@@ -271,7 +297,8 @@ public class InsertDocumentApp {
 			File sFile = new File(srcFile);
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
 			
-			String line = null;		    
+			String line = null;		
+			FirstLastEvent event = null;
 			while (threshold-- > 0 && (line = br.readLine()) != null) {
 
 				BasicDBObject mydbObject = new BasicDBObject();
@@ -286,10 +313,17 @@ public class InsertDocumentApp {
 				mydbObject.put("name", acct.getName());
 				mydbObject.put("region", acct.getRegion());
 				mydbObject.put("stage", acct.getStage());
-				mydbObject.put("tier", acct.getTier());
+				mydbObject.put("tier", acct.getTier());				
+				event = AcctDates.get(acct.getAcctId());
+				if (event == null) {
+					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+					continue;
+					
+				}
+				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
+				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
+
 				mydbObject.put("healthscores", acctsHScores.get(acct.getAcctId()));
-				
-				
 
 				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
 								
@@ -378,21 +412,35 @@ public class InsertDocumentApp {
 		}
 	}
 		
-	void appendHealthScore(String srcFile) throws IOException {
+	static void loadEvents() throws IOException {
 
-		File sFile = new File(srcFile);
+		String acctDates = "/Users/borongzhou/test/hostAnalysis/acctFirstLastDate.tsv";
+		String userDates = "/Users/borongzhou/test/hostAnalysis/enduserFirstLastDate.tsv";
+		
+		File sFile = new File(acctDates);
 		BufferedReader br = new BufferedReader(new FileReader(sFile));
 		
-		String line = br.readLine();
+		String line = null;
 		String[] splits = null; 
 		
 		while ((line = br.readLine()) != null) {
 			splits = line.split("\t");
-			String acctName = splits[3].trim();
-			// TODO:: change into String for float into integer
-			Double score = (1.0*Integer.parseInt(splits[0]))/(1.0*Integer.parseInt(splits[1]));
-			maxScore = (maxScore < score)? score : maxScore;
-			AcctScoring.put(acctName, score);
+			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+			AcctDates.put(splits[2], event);
+		}
+		
+		br.close();
+		
+		sFile = new File(userDates);
+		br = new BufferedReader(new FileReader(sFile));
+		
+		line = null;
+		splits = null; 
+		
+		while ((line = br.readLine()) != null) {
+			splits = line.split("\t");
+			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+			UserDates.put(splits[2], event);
 		}
 		
 		br.close();
@@ -417,7 +465,7 @@ public class InsertDocumentApp {
 			String line = null;
 			int total = 0;
 			int invalid = 0;
-			
+			FirstLastEvent event = null;
 			while (threshold-- > 0 && (line = br.readLine()) != null) {
 
 				BasicDBObject mydbObject = new BasicDBObject();
@@ -432,6 +480,16 @@ public class InsertDocumentApp {
 				mydbObject.put("_id", ensuser.get_id());
 				mydbObject.put("accountId", ensuser.getAccountId());
 				mydbObject.put("name", ensuser.getName());	
+
+				event = UserDates.get(ensuser.getName());
+				if (event == null) {
+					System.out.printf("no event for user: Name=%s\n", ensuser.getName());
+					continue;
+					
+				}
+				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
+				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
+
 				mydbObject.put("healthscores", usersHScores.get(ensuser.getName()));
 				
 				feeds.add(mydbObject);
@@ -471,6 +529,24 @@ public class InsertDocumentApp {
 		return new UsageCount(line).toString();
 	}
 	
+	public static class FirstLastEvent {
+		
+		String firstDate = null;
+		String lastDate = null;
+		
+		public FirstLastEvent(String firstDate, String lastDate) {
+			this.firstDate = firstDate;
+			this.lastDate = lastDate;
+		}
+		
+		public String getFirstDate() {
+			return firstDate;
+		}
+		public String getLastDate() {
+			return lastDate;
+		}
+		
+	}
 
 	public static class BNAendUser {
 		private Object _id = null;
@@ -634,46 +710,4 @@ public class InsertDocumentApp {
 			return GSON.toJson(this);
 		}
 	}
-	
-//	String toJson(String line) throws Exception {
-//		
-//		String retCode = "";
-//		if (StringUtil.isNullOrEmpty(line))
-//			return retCode;
-//		
-//		String[] splits = line.split(CommonTokens.UNICODE_FILED_SEP);
-//		if (splits.length < BNAticketFields.description.ordinal())
-//			return retCode;
-//		
-//		StringBuilder buf = new StringBuilder("{\"id\":\"");
-//		buf.append(splits[0]).append("\"");
-//		for (BNAticketFields attr : BNAticketFields.values()) {
-//			if (attr.ordinal() == 0 || BNAticketFields.description.equals(attr))
-//				continue;
-//			else
-//				buf.append(", ");
-//				
-//			if (BNAticketFields.closed.equals(attr) || BNAticketFields.resolved.equals(attr) || BNAticketFields.deleted.equals(attr))
-//				buf.append("\"").append(attr.name()).append("\":").append(splits[attr.ordinal()]);
-//			else if (BNAticketFields.reason.equals(attr)) {
-//				buf.append("\"").append(attr.name()).append("\":\"").append(splits[attr.ordinal()].replaceAll("\"", "'")).append("\"");
-//			} else if (BNAticketFields.contactId.equals(attr)) {
-//				buf.append("\"").append(attr.name()).append("\":").append(splits[attr.ordinal()]).append("");
-//			} else if (BNAticketFields.createdDate.equals(attr)) {
-//				String dateStr = splits[attr.ordinal()];
-//				DateWrapper dp = new DateWrapper(dateStr, "yyyy-MM-dd");
-//				buf.append("\"").append(attr.name()).append("\":").append(dp.getCurrentDateStr().replaceAll("-", "")).append("");
-//			} else if (BNAticketFields.type.equals(attr)) {
-//				buf.append("\"").append(attr.name()).append("\":").append(splits[attr.ordinal()]).append("");
-//			}
-//			else
-//				buf.append("\"").append(attr.name()).append("\":\"").append(splits[attr.ordinal()]).append("\"");
-//		}
-//		
-//		buf.append("}");
-//		
-//		retCode = buf.toString();
-//		
-//		return retCode;
-//	}
 }

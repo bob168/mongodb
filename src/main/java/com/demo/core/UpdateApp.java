@@ -1,4 +1,4 @@
-package com.mkyong.core;
+package com.demo.core;
 
 import java.net.UnknownHostException;
 import com.mongodb.BasicDBObject;
