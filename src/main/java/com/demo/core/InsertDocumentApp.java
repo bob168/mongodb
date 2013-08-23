@@ -336,7 +336,7 @@ public class InsertDocumentApp {
 					dates = new AcctChurnNotherDates(null, null, null);
 					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
 				}
-				mydbObject.put("startDate", dates.getStartDate());				
+				mydbObject.put("contractDate", dates.getStartDate());				
 				mydbObject.put("renewalDate", dates.getRenewalDate());
 				mydbObject.put("churnDate", dates.getChurnDate());
 				
