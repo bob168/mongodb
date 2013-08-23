@@ -41,9 +41,9 @@ public class InsertDocumentApp {
 	private static Map<String, Double> AcctScoring = null;
 	private static Map<String, FirstLastEvent> AcctDates = null;
 	private static Map<String, FirstLastEvent> UserDates = null;
+	private static Map<String, AcctChurnNotherDates> ChurnRenewalDates = null;
 	private static final String ipAddr = "localhost"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow"; //"bow-fa8e12345678900000000000";
-	private static double maxScore = 1.0;
+	private static final String dbName = "bow"; // "bow-fa8e12345678900000000000";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -74,6 +74,7 @@ public class InsertDocumentApp {
 		AcctScoring = new HashMap<String, Double>();
 		acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
 		usersHScores = new HashMap<String, LinkedHashSet<Health>>();
+		ChurnRenewalDates = new HashMap<String, AcctChurnNotherDates>();
 	}
 	
 	@After
@@ -91,11 +92,18 @@ public class InsertDocumentApp {
 		AcctScoring.clear();
 		AcctScoring = null;
 
-		acctsHScores.clear();
-		acctsHScores = null;
+		if (acctsHScores != null) {
+			acctsHScores.clear();
+			acctsHScores = null;
+		}
 
-		usersHScores.clear();
-		usersHScores = null;
+		if (usersHScores != null) {
+			usersHScores.clear();
+			usersHScores = null;
+		}
+		
+		ChurnRenewalDates.clear();
+		ChurnRenewalDates = null;
 		
 		sFormat = null;
 		usageDateFormat = null;
@@ -211,7 +219,7 @@ public class InsertDocumentApp {
 			Mongo mongo = new Mongo(ipAddr, 27017);
 			DB db = mongo.getDB(dbName);
 
-			DBCollection user = db.getCollection("endUser");
+			DBCollection user = db.getCollection("account");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
@@ -323,6 +331,15 @@ public class InsertDocumentApp {
 				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
 				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
 
+				AcctChurnNotherDates dates = ChurnRenewalDates.get(acct.getAcctName());
+				if (dates == null) { 
+					dates = new AcctChurnNotherDates(null, null, null);
+					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+				}
+				mydbObject.put("startDate", dates.getStartDate());				
+				mydbObject.put("renewalDate", dates.getRenewalDate());
+				mydbObject.put("churnDate", dates.getChurnDate());
+				
 				mydbObject.put("healthscores", acctsHScores.get(acct.getAcctId()));
 
 				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
@@ -416,6 +433,7 @@ public class InsertDocumentApp {
 
 		String acctDates = "/Users/borongzhou/test/hostAnalysis/acctFirstLastDate.tsv";
 		String userDates = "/Users/borongzhou/test/hostAnalysis/enduserFirstLastDate.tsv";
+		String churnDates = "/Users/borongzhou/test/hostAnalysis/detailCSMs.tsv";
 		
 		File sFile = new File(acctDates);
 		BufferedReader br = new BufferedReader(new FileReader(sFile));
@@ -441,6 +459,27 @@ public class InsertDocumentApp {
 			splits = line.split("\t");
 			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
 			UserDates.put(splits[2], event);
+		}
+		
+		br.close();
+		
+		// acctName        ARR     MRR     numOfEmp        contractedDate  renewalDate     revenueBand     stage   status  comments        csmName datekey year    quarter month   week    day     duration        terminated
+		sFile = new File(churnDates);
+		br = new BufferedReader(new FileReader(sFile));
+		
+		line = null;
+		splits = null; 
+		boolean terminated = false;
+		while ((line = br.readLine()) != null) {
+			splits = line.split("\t");
+			if (splits.length != 19) {
+				System.out.printf("invalid record: %s\n", line);
+				continue;
+			}
+			
+			terminated = Boolean.parseBoolean(splits[18]);
+			AcctChurnNotherDates event = new AcctChurnNotherDates(splits[4], terminated? null : splits[5], terminated? splits[5] : null);
+			ChurnRenewalDates.put(splits[0], event);
 		}
 		
 		br.close();
@@ -527,6 +566,38 @@ public class InsertDocumentApp {
 	
 	String toJson2(String line) throws Exception {
 		return new UsageCount(line).toString();
+	}
+	
+	public static class AcctChurnNotherDates {
+		
+		Date startDate = null;
+		Date renewalDate = null;
+		Date churnDate = null;
+		
+		public AcctChurnNotherDates(String startStr, String renewalStr, String churnStr) {
+			
+			try {
+				if (startStr != null)
+					this.startDate = sFormat.parse(startStr);
+				if (renewalStr != null)
+					this.renewalDate = sFormat.parse(renewalStr);
+				if (churnStr != null)
+					this.churnDate = sFormat.parse(churnStr);
+			} catch(ParseException ex) {
+				//
+			}
+		}
+		
+		public Date getStartDate() {
+			return startDate;
+		}
+		public Date getRenewalDate() {
+			return renewalDate;
+		}
+		public Date getChurnDate() {
+			return churnDate;
+		}
+		
 	}
 	
 	public static class FirstLastEvent {
