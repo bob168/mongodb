@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.UnknownHostException;
+import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -13,7 +14,6 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import org.bson.types.ObjectId;
 import org.junit.After;
@@ -22,6 +22,7 @@ import org.junit.Test;
 
 import com.google.gson.Gson;
 import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -33,42 +34,43 @@ import com.mongodb.MongoException;
  * Java MongoDB : Insert a Document into collection
  * 
  */
-public class InsertDocumentApp {
+public class ImportData {
 	
 	private static final ObjectId _idGenerator = new ObjectId();
 	private static Map<String, String> AcctMappping = null;
 	private static Map<String, Double> AcctScoring = null;
-	private static Map<String, FirstLastEvent> AcctDates = null;
-	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctChurnNotherDates> ChurnRenewalDates = null;
 	private static final String ipAddr = "localhost"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final String dbName = "bow-fa8e12345678900000000000";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
-	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyy/MM/dd hh:mm:ss.SSS");
+	private static SimpleDateFormat churnDateFormat = new SimpleDateFormat("MM/dd/yy");
+	private static DecimalFormat decimalFormat = new DecimalFormat("##########.##");
 	private static final Gson GSON = new Gson();
 
 	@Test
-	public void insert() throws Exception {
+	public void insert() {
 
-		loadEvents();
-		insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/acctHealthScoreTS.tsv");
-		insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
-		acctsHScores.clear();
-		acctsHScores = null;		
-		
-		insertUserHealthScore("/Users/borongzhou/test/hostAnalysis/endUserHealthScoreMonthly.tsv");
-		insertBNAenduserObject("/Users/borongzhou/test/hostAnalysis/usageEnduserOut.tsv");
+		try {
+			insertAcctHealthScore("/Users/borongzhou/test/replicon/generalAcctScores.tsv");
+			insertBNAaccountObject("/Users/borongzhou/test/replicon/generalAcctMRRs.tsv");
+			acctsHScores.clear();
+			acctsHScores = null;
 
-		usersHScores.clear();
-		usersHScores = null;
+			insertUserHealthScore("/Users/borongzhou/test/replicon/generalEndUserScores.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/replicon/generalEndUsers.tsv");
+
+			usersHScores.clear();
+			usersHScores = null;
+		} catch (Exception ex) {
+			ex.printStackTrace(System.out);
+		}
 	}
 
 	@Before
 	public void setup() {
-		AcctDates = new HashMap<String, FirstLastEvent>();
-		UserDates = new HashMap<String, FirstLastEvent>();
 		AcctMappping = new HashMap<String, String>();
 		AcctScoring = new HashMap<String, Double>();
 		acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
@@ -78,12 +80,6 @@ public class InsertDocumentApp {
 	
 	@After
 	public void teranDown() {
-
-		AcctDates.clear();
-		AcctDates = null;
-
-		UserDates.clear();
-		UserDates = null;
 		
 		AcctMappping.clear();
 		AcctMappping = null;
@@ -118,34 +114,33 @@ public class InsertDocumentApp {
 
 		LinkedHashSet<Health> list = null;
 		Health score = null;
-		Integer eventNum = 0;
-		Integer custNum = 1;
-		long maxVal = 0;
-		long scoreInt = 0;
-
-		Random rm = new Random(new Date().getTime());
+		String acctId = null;
+		double maxScore = 0.0;
+		double mScore = 0.0;
+		int totalRecords = 0;
+		int invalidRecords = 0;
 		while ((line = br.readLine()) != null) {
-			if (line.contains("eventNum"))
+			
+			if (line.contains("mScore"))
 				continue;
+			totalRecords++;
 			
 			splits = line.split("\t");
-			eventNum = Integer.parseInt(splits[0]);
-			custNum = Integer.parseInt(splits[1]);
-			custNum = (custNum == null)? 1 : custNum;
-			String acctId = splits[2].trim();
+			acctId = splits[2].trim();
+			
 			list = acctsHScores.get(acctId);
 			if (list == null) {
 				list = new LinkedHashSet<Health>();
 				acctsHScores.put(acctId, list);
 			}
+			mScore = Double.parseDouble(splits[0]);
+			maxScore = Double.parseDouble(splits[1]);
 			score = new Health();
-			scoreInt = Math.round(100.0*eventNum / (621.0*custNum)); 
-			scoreInt = (scoreInt > 100)? (95 + (scoreInt % 5)) : scoreInt;
-			scoreInt = Math.abs((scoreInt < 10)? (rm.nextLong() % 10 + 1) : scoreInt);
-			score.setScore(String.valueOf(scoreInt));
+			long myScore = Math.round(100*mScore / maxScore);
+			if (myScore > 100)
+				System.out.printf("mScore=%f, maxScore=%f, myScore=%d\n", mScore, maxScore, myScore);
+			score.setScore(String.valueOf(myScore));
 			score.setCreated(sFormat.parse(splits[4] + "01"));
-
-			maxVal = (maxVal < scoreInt)? scoreInt : maxVal;
 			
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -158,7 +153,7 @@ public class InsertDocumentApp {
 
 		br.close();
 		
-		System.out.printf("max Value %d\n", maxVal);
+		System.out.printf("max Score %d with invalid scores %d\ttotal scores %d\n", Math.round(maxScore), invalidRecords, totalRecords);
 	}
 
 
@@ -171,28 +166,45 @@ public class InsertDocumentApp {
 		String[] splits = null;
 		LinkedHashSet<Health> list = null;
 		Health score = null;
-		Double eventNum = 0.0;
-		Double maxVal = 0.0;
-		long longVal;
-		// eventNum        acctId  userName        month
+		Double mScore = 0.0;
+		Double maxScore = 0.0;
+		String acctId = null;
+		String userId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
 		while ((line = br.readLine()) != null) {
-			if (line.contains("eventNum"))
+			
+			if (line.contains("mScore"))
 				continue;
+			totalRecords++;
 			
 			splits = line.split("\t");
-			eventNum = Double.parseDouble(splits[0]);
+			mScore = Double.parseDouble(splits[0]);
+			maxScore = Double.parseDouble(splits[1]);
 		
-			String userName = splits[2].trim();
-			list = usersHScores.get(userName);
+			userId = splits[2].trim();
+			acctId = splits[3].trim();
+
+			if (AcctMappping.get(acctId) == null) {
+				invalidRecords++;
+				continue;
+			}
+			
+			userId = acctId + "-" + userId;
+			
+			list = usersHScores.get(userId);
 			if (list == null) {
 				list = new LinkedHashSet<Health>();
-				usersHScores.put(userName, list);
+				usersHScores.put(userId, list);
 			}
-			longVal = Math.round(100*eventNum / 32.1);
-			maxVal = (maxVal < longVal)? longVal : maxVal;
+			
+			long myScore = Math.round(100.0*mScore / maxScore);
+			if (myScore > 100)
+				System.out.printf("mScore=%f, maxScore=%f, myScore=%d\n", mScore, maxScore, myScore);
+			
 			score = new Health();
-			score.setScore(String.valueOf(longVal));
-			score.setCreated(sFormat.parse(splits[3] + "01"));
+			score.setScore(String.valueOf(myScore));
+			score.setCreated(sFormat.parse(splits[5] + "01"));
 
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -206,7 +218,7 @@ public class InsertDocumentApp {
 
 		br.close();
 
-		System.out.printf("max Value %f\n", maxVal);
+		System.out.printf("max Score %d with invalid records %d\ttotal records %d\n", Math.round(maxScore), invalidRecords, totalRecords);
 
 	}
 
@@ -218,7 +230,7 @@ public class InsertDocumentApp {
 			Mongo mongo = new Mongo(ipAddr, 27017);
 			DB db = mongo.getDB(dbName);
 
-			DBCollection user = db.getCollection("endUser");
+			DBCollection user = db.getCollection("account");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
@@ -303,11 +315,15 @@ public class InsertDocumentApp {
 			
 			File sFile = new File(srcFile);
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			int totalRecords = 0;
 			
 			String line = null;		
-			FirstLastEvent event = null;
 			while (threshold-- > 0 && (line = br.readLine()) != null) {
 
+				if (line.contains("acctId"))
+					continue;
+				totalRecords++;
+				
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAacct acct = new BNAacct(line);
 				mydbObject.put("_id", acct.get_id());
@@ -317,28 +333,18 @@ public class InsertDocumentApp {
 				mydbObject.put("salesLead", acct.getSalesLead());
 				mydbObject.put("endUserCount", acct.getEndUserCount());
 				mydbObject.put("location", acct.getLocation());
-				mydbObject.put("name", acct.getName());
+				mydbObject.put("name", acct.getAcctName());
 				mydbObject.put("region", acct.getRegion());
-				mydbObject.put("stage", acct.getStage());
-				mydbObject.put("tier", acct.getTier());				
-				event = AcctDates.get(acct.getAcctId());
-				if (event == null) {
-					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-					continue;
-					
-				}
-				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
-				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
-
-				AcctChurnNotherDates dates = ChurnRenewalDates.get(acct.getAcctName());
-				if (dates == null) { 
-					dates = new AcctChurnNotherDates(null, null, null);
-					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-				}
-				mydbObject.put("contractDate", dates.getStartDate());				
-				mydbObject.put("renewalDate", dates.getRenewalDate());
-				mydbObject.put("churnDate", dates.getChurnDate());
-				
+				mydbObject.put("stage", acct.getStage()); // default
+				mydbObject.put("tier", acct.getTier());	
+				mydbObject.put("industry", acct.getIndustry());
+				mydbObject.put("campaign", acct.getCampaign());
+				mydbObject.put("channel", acct.getChannel());
+				mydbObject.put("contractDate", acct.getContractDate());
+				mydbObject.put("renewalDate", acct.getRenewalDate()); // default
+				mydbObject.put("churnDate", acct.getChurnDate());	
+				mydbObject.put("firstEvent", acct.getFirstEvent());
+				mydbObject.put("lastEvent", acct.getLastEvent());				
 				mydbObject.put("healthscores", acctsHScores.get(acct.getAcctId()));
 
 				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
@@ -361,6 +367,8 @@ public class InsertDocumentApp {
 			
 			br.close();
 
+			System.out.printf("Total insert Accts %d\n", totalRecords);
+			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (MongoException e) {
@@ -372,16 +380,20 @@ public class InsertDocumentApp {
 
 	public static void main(String[] args)  {
 		
-		// 1377414001;1377414018;24
-		System.out.println(new Date(1377414001));
-		System.out.println(new Date(1377414013));
-//		1377414001;1377414013;12
-		System.out.println((1377414013 - 1377414001));
-		
-//		try {
-//			Mongo mongo = new Mongo("localhost", 27017);
-//			DB db = mongo.getDB("bow");
-//
+		try {
+			Mongo mongo = new Mongo(ipAddr, 27017);
+			DB db = mongo.getDB(dbName);
+			DBCollection collection = db.getCollection("account");
+			collection.drop();
+			collection = db.getCollection("endUser");
+			collection.drop();
+			
+			ImportData demo = new ImportData();
+			
+			demo.setup();
+			demo.insert();
+			demo.teranDown();
+			
 //			DBCollection collection = db.getCollection("hosting");
 //			collection.drop();
 //			collection = db.getCollection("hosting");
@@ -428,68 +440,12 @@ public class InsertDocumentApp {
 //			}
 //
 //			collection.remove(new BasicDBObject());
-//
-//		} catch(Throwable ex) {
-//			ex.printStackTrace(System.out);
-//		}
+
+		} catch(Throwable ex) {
+			ex.printStackTrace(System.out);
+		}
 	}
 		
-	static void loadEvents() throws IOException {
-
-		String acctDates = "/Users/borongzhou/test/hostAnalysis/acctFirstLastDate.tsv";
-		String userDates = "/Users/borongzhou/test/hostAnalysis/enduserFirstLastDate.tsv";
-		String churnDates = "/Users/borongzhou/test/hostAnalysis/detailCSMs.tsv";
-		
-		File sFile = new File(acctDates);
-		BufferedReader br = new BufferedReader(new FileReader(sFile));
-		
-		String line = null;
-		String[] splits = null; 
-		
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			AcctDates.put(splits[2], event);
-		}
-		
-		br.close();
-		
-		sFile = new File(userDates);
-		br = new BufferedReader(new FileReader(sFile));
-		
-		line = null;
-		splits = null; 
-		
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			UserDates.put(splits[2], event);
-		}
-		
-		br.close();
-		
-		// acctName        ARR     MRR     numOfEmp        contractedDate  renewalDate     revenueBand     stage   status  comments        csmName datekey year    quarter month   week    day     duration        terminated
-		sFile = new File(churnDates);
-		br = new BufferedReader(new FileReader(sFile));
-		
-		line = null;
-		splits = null; 
-		boolean terminated = false;
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			if (splits.length != 19) {
-				System.out.printf("invalid record: %s\n", line);
-				continue;
-			}
-			
-			terminated = Boolean.parseBoolean(splits[18]);
-			AcctChurnNotherDates event = new AcctChurnNotherDates(splits[4], terminated? null : splits[5], terminated? splits[5] : null);
-			ChurnRenewalDates.put(splits[0], event);
-		}
-		
-		br.close();
-	}
-
 	void insertBNAenduserObject(String srcFile) throws Exception {
 
 		try {
@@ -509,32 +465,31 @@ public class InsertDocumentApp {
 			String line = null;
 			int total = 0;
 			int invalid = 0;
-			FirstLastEvent event = null;
 			while (threshold-- > 0 && (line = br.readLine()) != null) {
 
+				if (line.contains("acctId"))
+					continue;
+				
 				BasicDBObject mydbObject = new BasicDBObject();
-				BNAendUser ensuser = new BNAendUser(line);
+				BNAendUser enduser = new BNAendUser(line);
 
 				total++;
-				if (ensuser.getAccountId() == null) {
+				if (enduser.getAccountId() == null) {
 					invalid++;
 					continue;
 				}
 				
-				mydbObject.put("_id", ensuser.get_id());
-				mydbObject.put("accountId", ensuser.getAccountId());
-				mydbObject.put("name", ensuser.getName());	
-
-				event = UserDates.get(ensuser.getName());
-				if (event == null) {
-					System.out.printf("no event for user: Name=%s\n", ensuser.getName());
-					continue;
-					
+				mydbObject.put("_id", enduser.get_id());
+				mydbObject.put("accountId", enduser.getAccountId());
+				mydbObject.put("name", enduser.getName());	
+				mydbObject.put("firstEvent", enduser.getFirstEvent());
+				mydbObject.put("lastEvent", enduser.getLastEvent());
+				String userId = enduser.getAcctId() + "-" + enduser.getUserId();
+				LinkedHashSet<Health> userHScore = usersHScores.get(userId);
+				if (userHScore == null) {
+					System.out.printf("no heath score for user %s\t acct %s\n", enduser.getUserId(), enduser.getAccountId());
 				}
-				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
-				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
-
-				mydbObject.put("healthscores", usersHScores.get(ensuser.getName()));
+				mydbObject.put("healthscores", userHScore);
 				
 				feeds.add(mydbObject);
 				mydbObject = null;
@@ -555,6 +510,7 @@ public class InsertDocumentApp {
 			br.close();
 			
 			System.out.printf("Enduser, total=%d\tinvalid=%d\n ", total, invalid);
+			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
 		} catch (MongoException e) {
@@ -605,47 +561,37 @@ public class InsertDocumentApp {
 		
 	}
 	
-	public static class FirstLastEvent {
-		
-		String firstDate = null;
-		String lastDate = null;
-		
-		public FirstLastEvent(String firstDate, String lastDate) {
-			this.firstDate = firstDate;
-			this.lastDate = lastDate;
-		}
-		
-		public String getFirstDate() {
-			return firstDate;
-		}
-		public String getLastDate() {
-			return lastDate;
-		}
-		
-	}
-
 	public static class BNAendUser {
 		private Object _id = null;
 		private Object accountId = null;
+		private String acctId = null;
+		private String userId = null;
 		private String name = null;
+		private Date firstEvent = null;
+		private Date lastEvent = null;
 		
-		public BNAendUser(String data) {
+		public BNAendUser(String data) throws ParseException {
 			if (data == null || data.isEmpty())
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != 4)
+			if (splits.length != 5)
 				return;
 			
+			this.userId = splits[1];
 			this.name = splits[2];
-			this._id = new ObjectId();
-
-			String acctId = splits[0].trim();
+			String str = splits[3];
+			this.firstEvent = "-9999".equals(str)? null : usageDateFormat.parse(str);
+			str = splits[4];
+			this.lastEvent = "-9999".equals(str)? null : usageDateFormat.parse(str);
+			this.acctId = splits[0].trim();
 			if (AcctMappping.get(acctId) == null) {
 				System.out.println("no objectId for " + acctId);
 			}
 			else
 				this.accountId = new ObjectId(AcctMappping.get(acctId));
+
+			this._id = new ObjectId();
 		}
 
 		public Object get_id() {
@@ -654,10 +600,26 @@ public class InsertDocumentApp {
 		public Object getAccountId() {
 			return accountId;
 		}
+		public String getUserId() {
+			return userId;
+		}
 		public String getName() {
 			return name;
 		}
+		public Date getFirstEvent() {
+			return firstEvent;
+		}
+		public Date getLastEvent() {
+			return lastEvent;
+		}
+		public String getAcctId() {
+			return acctId;
+		}
 
+		@Override
+		public String toString() {
+			return GSON.toJson(this);
+		}
 	}
 	
 	public static class BNAacct {
@@ -671,29 +633,48 @@ public class InsertDocumentApp {
 		private String endUserCount = null;
 		private String mrr = null;
 		private String arr = null;
+		private String industry = null;
 		private String tier = null;
 		private String stage = null;
+		private String campaign = null;
+		private String channel = null;
+		private Date contractDate = null;
+		private Date renewalDate = null;
+		private Date churnDate = null;
+		private Date firstEvent = null;
+		private Date lastEvent = null;
 		
-		public BNAacct(String data) {
+		public BNAacct(String data) throws ParseException {
 			if (data == null || data.isEmpty())
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != 14)
+			if (splits.length != 17)
 				return;
 			
-			this.acctId = splits[0].trim();
-			this.acctName = splits[1].trim();
-			this.csmName = splits[2].trim();
-			this.salesLead = splits[3];
-			this.location = splits[4];
-			this.region = splits[5];
-			this.endUserCount = splits[6];
-			this.mrr = splits[7];
-			float mrrFlot = Float.parseFloat(mrr);
-			this.arr = String.valueOf(12.0 * mrrFlot);
-			this.tier = splits[8];
-			this.stage = splits[9];
+			this.acctId = splits[AcctFields.acctId.ordinal()].trim();
+			this.acctName = splits[AcctFields.acctName.ordinal()].trim();
+			this.csmName = splits[AcctFields.csmName.ordinal()].trim();
+			this.salesLead = splits[AcctFields.salesLead.ordinal()];
+			this.location = splits[AcctFields.location.ordinal()];
+			this.region = splits[AcctFields.region.ordinal()];
+			this.endUserCount = splits[AcctFields.endUserCount.ordinal()];
+			this.mrr = splits[AcctFields.mrr.ordinal()]; // decimalFormat
+			double mrrDouble = Double.parseDouble(mrr);
+			this.mrr = decimalFormat.format(mrrDouble);
+			this.arr = decimalFormat.format(12 * mrrDouble);
+			this.industry = splits[AcctFields.industry.ordinal()];
+			this.tier = splits[AcctFields.tier.ordinal()];
+			this.campaign = splits[AcctFields.campaign.ordinal()];
+			this.channel = splits[AcctFields.channel.ordinal()];
+			String str = splits[AcctFields.contracteDate.ordinal()];
+			this.contractDate = "-9999".equals(str)? null : churnDateFormat.parse(str);
+			str = splits[AcctFields.churnDate.ordinal()]; 
+			this.churnDate = "-9999".equals(str)? null : churnDateFormat.parse(str);
+			str = splits[AcctFields.firstEventDate.ordinal()];
+			this.firstEvent = "-9999".equals(str)? null : usageDateFormat.parse(str);
+			str = splits[AcctFields.lastEventDate.ordinal()];
+			this.lastEvent = "-9999".equals(str)? null : usageDateFormat.parse(str);
 			
 			this._id = new ObjectId();
 		}
@@ -705,9 +686,6 @@ public class InsertDocumentApp {
 			return acctId;
 		}
 		public String getAcctName() {
-			return acctName;
-		}
-		public String getName() {
 			return acctName;
 		}
 		public String getCsmName() {
@@ -731,17 +709,61 @@ public class InsertDocumentApp {
 		public String getArr() {
 			return arr;
 		}
+		public String getIndustry() {
+			return industry;
+		}
 		public String getTier() {
 			return tier;
 		}
 		public String getStage() {
 			return stage;
 		}
+		public String getCampaign() {
+			return campaign;
+		}
+		public String getChannel() {
+			return channel;
+		}
+		public Date getContractDate() {
+			return contractDate;
+		}
+		public Date getRenewalDate() {
+			return renewalDate;
+		}
+		public Date getChurnDate() {
+			return churnDate;
+		}
+		public Date getFirstEvent() {
+			return firstEvent;
+		}
+		public Date getLastEvent() {
+			return lastEvent;
+		}
 
 		@Override
 		public String toString() {
 			return GSON.toJson(this);
 		}
+	}
+	
+	public static enum AcctFields {
+		acctId,
+		acctName,
+		csmName,
+		salesLead,
+		location,
+		region,
+		endUserCount,
+		mrr,
+		arr,
+		industry,
+		tier,
+		campaign,
+		channel,
+		contracteDate,
+		churnDate,
+		firstEventDate,
+		lastEventDate
 	}
 	
 	public static class UsageCount {
