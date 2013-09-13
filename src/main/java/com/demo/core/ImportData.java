@@ -40,8 +40,8 @@ public class ImportData {
 	private static Map<String, String> AcctMappping = null;
 	private static Map<String, Double> AcctScoring = null;
 	private static Map<String, AcctChurnNotherDates> ChurnRenewalDates = null;
-	private static final String ipAddr = "localhost"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-fa8e12345678900000000000";
+	private static final String ipAddr = "10.0.1.243"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-replicon";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -230,7 +230,7 @@ public class ImportData {
 			Mongo mongo = new Mongo(ipAddr, 27017);
 			DB db = mongo.getDB(dbName);
 
-			DBCollection user = db.getCollection("account");
+			DBCollection user = db.getCollection("endUser");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
