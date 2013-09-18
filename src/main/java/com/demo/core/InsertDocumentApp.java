@@ -40,13 +40,13 @@ public class InsertDocumentApp {
 	private static Map<String, Double> AcctScoring = null;
 	private static Map<String, FirstLastEvent> AcctDates = null;
 	private static Map<String, FirstLastEvent> UserDates = null;
-	private static Map<String, AcctChurnNotherDates> ChurnRenewalDates = null;
+	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
 	private static final String ipAddr = "ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final String dbName = "host-newaccts";
 	
 //	private static final String ipAddr = "localhost"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-//	private static final String dbName = "bow-fa8e12345678900000000000";
+//	private static final String dbName = "host-newaccts"; // "bow-fa8e12345678900000000000";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -55,10 +55,10 @@ public class InsertDocumentApp {
 
 	@Test
 	public void insert() throws Exception {
-
+		
 		loadEvents();
 		insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/acctHealthScoreTS.tsv");
-		insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/hostAcctsv2.tsv"); // "/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
+		insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/hostAcctsv3.tsv"); // "/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
 		acctsHScores.clear();
 		acctsHScores = null;		
 		
@@ -77,7 +77,7 @@ public class InsertDocumentApp {
 		AcctScoring = new HashMap<String, Double>();
 		acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
 		usersHScores = new HashMap<String, LinkedHashSet<Health>>();
-		ChurnRenewalDates = new HashMap<String, AcctChurnNotherDates>();
+		ChurnRenewalDates = new HashMap<String, AcctDates>();
 	}
 	
 	@After
@@ -222,32 +222,34 @@ public class InsertDocumentApp {
 			Mongo mongo = new Mongo(ipAddr, 27017);
 			DB db = mongo.getDB(dbName);
 
-			DBCollection user = db.getCollection("account");
+			DBCollection user = db.getCollection("endUser");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
 //			whereQuery.put("accountId", new ObjectId("52051655e4b0b995b2e11c62")); 
 			DBCursor cursor = user.find(whereQuery);
-			int count = 100;
+
+			System.out.println(user.count());
+			
+			int count = 20;
 			while (count-- > 0 && cursor.hasNext()) {
 				System.out.println(cursor.next());
 			}
-			System.out.println(user.count());
 			cursor.close();
 			
-//			DBCollection account = db.getCollection("account");
-//			whereQuery = new BasicDBObject();
-////			whereQuery.put("name", "mirion technologies inc");
+			DBCollection account = db.getCollection("account");
+			whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "mirion technologies inc");
-////			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
-//			
-//			DBCursor cursorDoc = account.find(whereQuery);
-//			while (cursorDoc.hasNext()) {
-//				System.out.println(cursorDoc.next());
-//			}
-//
-//			System.out.println(account.count());
-//			cursorDoc.close();
+//			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
+			
+			DBCursor cursorDoc = account.find(whereQuery);
+			count = 20;
+			while (count--> 0 && cursorDoc.hasNext()) {
+				System.out.println(cursorDoc.next());
+			}
+
+			System.out.println(account.count());
+			cursorDoc.close();
 			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -324,7 +326,10 @@ public class InsertDocumentApp {
 				mydbObject.put("name", acct.getName());
 				mydbObject.put("region", acct.getRegion());
 				mydbObject.put("stage", acct.getStage());
-				mydbObject.put("tier", acct.getTier());				
+				mydbObject.put("tier", acct.getTier());	
+				mydbObject.put("industry", acct.getIndustry());	
+				mydbObject.put("gORl", acct.getGORl());				
+				mydbObject.put("churn", acct.isChurn());				
 				event = AcctDates.get(acct.getAcctId());
 				if (event == null) {
 					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
@@ -333,16 +338,16 @@ public class InsertDocumentApp {
 					mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
 					mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
 				}
-				AcctChurnNotherDates dates = ChurnRenewalDates.get(acct.getAcctName());
+				AcctDates dates = ChurnRenewalDates.get(acct.getAcctId());
 				if (dates == null) { 
-					dates = new AcctChurnNotherDates(null, null, null);
+					dates = new AcctDates(null, null, null);
 					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
 				}
 				mydbObject.put("contractDate", dates.getStartDate());				
 				mydbObject.put("renewalDate", dates.getRenewalDate());
 				mydbObject.put("churnDate", dates.getChurnDate());
 				
-				mydbObject.put("healthscores", acctsHScores.get(acct.getAcctId()));
+				mydbObject.put("healthScores", acctsHScores.get(acct.getAcctId()));
 
 				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
 								
@@ -441,7 +446,7 @@ public class InsertDocumentApp {
 
 		String acctDates = "/Users/borongzhou/test/hostAnalysis/acctFirstLastDate.tsv";
 		String userDates = "/Users/borongzhou/test/hostAnalysis/enduserFirstLastDate.tsv";
-		String churnDates = "/Users/borongzhou/test/hostAnalysis/detailCSMs.tsv";
+		String churnDates = "/Users/borongzhou/test/hostAnalysis/acctDates2.tsv";
 		
 		File sFile = new File(acctDates);
 		BufferedReader br = new BufferedReader(new FileReader(sFile));
@@ -471,22 +476,20 @@ public class InsertDocumentApp {
 		
 		br.close();
 		
-		// acctName        ARR     MRR     numOfEmp        contractedDate  renewalDate     revenueBand     stage   status  comments        csmName datekey year    quarter month   week    day     duration        terminated
+		// acctId, startDate, renewalDate, churnDate
 		sFile = new File(churnDates);
 		br = new BufferedReader(new FileReader(sFile));
 		
 		line = null;
 		splits = null; 
-		boolean terminated = false;
 		while ((line = br.readLine()) != null) {
 			splits = line.split("\t");
-			if (splits.length != 19) {
+			if (splits.length != 4) {
 				System.out.printf("invalid record: %s\n", line);
 				continue;
 			}
 			
-			terminated = Boolean.parseBoolean(splits[18]);
-			AcctChurnNotherDates event = new AcctChurnNotherDates(splits[4], terminated? null : splits[5], terminated? splits[5] : null);
+			AcctDates event = new AcctDates(splits[1], "-9999".equals(splits[2])? null : splits[2], "-9999".equals(splits[3])? null : splits[3]);
 			ChurnRenewalDates.put(splits[0], event);
 		}
 		
@@ -537,7 +540,7 @@ public class InsertDocumentApp {
 				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
 				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
 
-				mydbObject.put("healthscores", usersHScores.get(ensuser.getName()));
+				mydbObject.put("healthScores", usersHScores.get(ensuser.getName()));
 				
 				feeds.add(mydbObject);
 				mydbObject = null;
@@ -576,13 +579,13 @@ public class InsertDocumentApp {
 		return new UsageCount(line).toString();
 	}
 	
-	public static class AcctChurnNotherDates {
+	public static class AcctDates {
 		
 		Date startDate = null;
 		Date renewalDate = null;
 		Date churnDate = null;
 		
-		public AcctChurnNotherDates(String startStr, String renewalStr, String churnStr) {
+		public AcctDates(String startStr, String renewalStr, String churnStr) {
 			
 			try {
 				if (startStr != null)
@@ -676,27 +679,38 @@ public class InsertDocumentApp {
 		private String arr = null;
 		private String tier = null;
 		private String stage = null;
+		private String industry = null;
+		private String gORl = null;
+		private boolean churn = false;
 		
 		public BNAacct(String data) {
 			if (data == null || data.isEmpty())
 				return;
-			
+			// 116080	Keri Keeling	Patrick Townsend	The Martin-Brower Company, L.L.C.	IL	Customer	Premium	100	138499.61	Budgeting	JD Edwards	Food and Beverage	20101209	2010	4	12	5	9	1008	false
 			String[] splits = data.split("\t");
-			if (splits.length != 14)
+			if (splits.length != HOST_ACCT_V2.values().length)
 				return;
 			
-			this.acctId = splits[0].trim();
-			this.acctName = splits[1].trim();
-			this.csmName = splits[2].trim();
-			this.salesLead = splits[3];
-			this.location = splits[4];
-			this.region = splits[5];
-			this.endUserCount = splits[6];
-			this.mrr = splits[7];
-			float mrrFlot = Float.parseFloat(mrr);
-			this.arr = String.valueOf(12.0 * mrrFlot);
-			this.tier = splits[8];
-			this.stage = splits[9];
+			this.acctId = splits[HOST_ACCT_V2.acctId.ordinal()].trim();
+			this.acctName = splits[HOST_ACCT_V2.acctName.ordinal()].trim();
+			acctName = "@".equals(acctName)? "unknown" : acctName;
+			this.csmName = splits[HOST_ACCT_V2.csmName.ordinal()].trim();
+			csmName = "@".equals(csmName)? "unknown" : csmName;
+			this.salesLead = splits[HOST_ACCT_V2.salesLead.ordinal()];
+			salesLead = "@".equals(salesLead)? "unknown" : salesLead;
+			this.location = splits[HOST_ACCT_V2.state.ordinal()];
+			location = "@".equals(location)? "unknown" : location;
+			this.endUserCount = splits[HOST_ACCT_V2.numEmp.ordinal()];
+			this.arr = splits[HOST_ACCT_V2.annRev.ordinal()];
+			float arrFlot = Float.parseFloat(arr);
+			this.mrr = String.valueOf(arrFlot/12.0);
+			this.tier = splits[HOST_ACCT_V2.tier.ordinal()];
+			tier = "@".equals(tier)? "unknown" : tier;
+			this.industry = splits[HOST_ACCT_V2.industry.ordinal()];
+			industry = "@".equals(industry)? "unknown" : industry;
+			this.gORl = splits[HOST_ACCT_V2.gORl.ordinal()];
+			gORl = "@".equals(gORl)? "unknown" : gORl;
+			this.churn = Boolean.parseBoolean(splits[HOST_ACCT_V2.churn.ordinal()]);
 			
 			this._id = new ObjectId();
 		}
@@ -740,11 +754,37 @@ public class InsertDocumentApp {
 		public String getStage() {
 			return stage;
 		}
+		public String getIndustry() {
+			return industry;
+		}
+		public String getGORl() {
+			return gORl;
+		}
+		public boolean isChurn() {
+			return churn;
+		}
 
 		@Override
 		public String toString() {
 			return GSON.toJson(this);
 		}
+	}
+
+	
+	static enum HOST_ACCT_V2 {		
+	   acctId,
+	   csmName,
+	   salesLead,
+	   acctName,
+	   state,
+	   tier,
+	   supportLevel,
+	   numEmp,
+	   annRev,
+	   product,
+	   gORl,
+	   industry,
+	   churn
 	}
 	
 	public static class UsageCount {

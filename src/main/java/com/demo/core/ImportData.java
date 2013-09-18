@@ -40,8 +40,8 @@ public class ImportData {
 	private static Map<String, String> AcctMappping = null;
 	private static Map<String, Double> AcctScoring = null;
 	private static Map<String, AcctChurnNotherDates> ChurnRenewalDates = null;
-	private static final String ipAddr = "10.0.1.243"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-replicon";
+	private static final String ipAddr = "10.0.9.11"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-fa8e12345678900000000001";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -345,7 +345,7 @@ public class ImportData {
 				mydbObject.put("churnDate", acct.getChurnDate());	
 				mydbObject.put("firstEvent", acct.getFirstEvent());
 				mydbObject.put("lastEvent", acct.getLastEvent());				
-				mydbObject.put("healthscores", acctsHScores.get(acct.getAcctId()));
+				mydbObject.put("healthScores", acctsHScores.get(acct.getAcctId()));
 
 				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
 								
@@ -489,7 +489,7 @@ public class ImportData {
 				if (userHScore == null) {
 					System.out.printf("no heath score for user %s\t acct %s\n", enduser.getUserId(), enduser.getAccountId());
 				}
-				mydbObject.put("healthscores", userHScore);
+				mydbObject.put("healthScores", userHScore);
 				
 				feeds.add(mydbObject);
 				mydbObject = null;
