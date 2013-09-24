@@ -22,7 +22,6 @@ import org.junit.Test;
 
 import com.google.gson.Gson;
 import com.mongodb.BasicDBObject;
-import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
@@ -40,8 +39,8 @@ public class ImportData {
 	private static Map<String, String> AcctMappping = null;
 	private static Map<String, Double> AcctScoring = null;
 	private static Map<String, AcctChurnNotherDates> ChurnRenewalDates = null;
-	private static final String ipAddr = "10.0.9.11"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-fa8e12345678900000000001";
+	private static final String ipAddr = "10.0.9.18"; // "ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-replicon"; // "bow-fa8e12345678900000000001";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -236,26 +235,28 @@ public class ImportData {
 //			whereQuery.put("name", "vamsi krishna"); 
 //			whereQuery.put("accountId", new ObjectId("52051655e4b0b995b2e11c62")); 
 			DBCursor cursor = user.find(whereQuery);
-			int count = 100;
+
+			System.out.println(user.count());
+			
+			int count = 20;
 			while (count-- > 0 && cursor.hasNext()) {
 				System.out.println(cursor.next());
 			}
-			System.out.println(user.count());
 			cursor.close();
 			
-//			DBCollection account = db.getCollection("account");
-//			whereQuery = new BasicDBObject();
-////			whereQuery.put("name", "mirion technologies inc");
+			DBCollection account = db.getCollection("account");
+			whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "mirion technologies inc");
-////			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
-//			
-//			DBCursor cursorDoc = account.find(whereQuery);
-//			while (cursorDoc.hasNext()) {
-//				System.out.println(cursorDoc.next());
-//			}
-//
-//			System.out.println(account.count());
-//			cursorDoc.close();
+//			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
+			
+			DBCursor cursorDoc = account.find(whereQuery);
+			count = 20;
+			while (count--> 0 && cursorDoc.hasNext()) {
+				System.out.println(cursorDoc.next());
+			}
+
+			System.out.println(account.count());
+			cursorDoc.close();
 			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -327,6 +328,7 @@ public class ImportData {
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAacct acct = new BNAacct(line);
 				mydbObject.put("_id", acct.get_id());
+				mydbObject.put("usageId", acct.getAcctId());
 				mydbObject.put("arr", acct.getArr());
 				mydbObject.put("mrr", acct.getMrr());
 				mydbObject.put("csmName", acct.getCsmName());

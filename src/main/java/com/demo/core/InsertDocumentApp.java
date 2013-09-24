@@ -42,11 +42,9 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "host-newaccts";
+	private static final String ipAddr = "10.0.9.18"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-fa8e12345678900000000000";
 	
-//	private static final String ipAddr = "localhost"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-//	private static final String dbName = "host-newaccts"; // "bow-fa8e12345678900000000000";
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -317,6 +315,7 @@ public class InsertDocumentApp {
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAacct acct = new BNAacct(line);
 				mydbObject.put("_id", acct.get_id());
+				mydbObject.put("usageId", acct.getAcctId());
 				mydbObject.put("arr", acct.getArr());
 				mydbObject.put("mrr", acct.getMrr());
 				mydbObject.put("csmName", acct.getCsmName());
