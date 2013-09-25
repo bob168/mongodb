@@ -13,7 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import org.bson.types.ObjectId;
 import org.junit.After;
@@ -42,29 +41,33 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "10.0.9.18"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-fa8e12345678900000000000";
+	private static final String ipAddr = "10.0.9.11"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-fa8e12345678900000000002"; // "bow-fa8e12345678900000000000";
 	
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
-	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSS");
+	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyyMMdd"); //"yyyy-MM-dd hh:mm:ss.SSS");
 	private static final Gson GSON = new Gson();
 
 	@Test
-	public void insert() throws Exception {
+	public void insert()  {
 		
-		loadEvents();
-		insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/acctHealthScoreTS.tsv");
-		insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/hostAcctsv3.tsv"); // "/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
-		acctsHScores.clear();
-		acctsHScores = null;		
+		try {
+			loadEvents();
+			insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/product2/hostAcctHealthScore.tsv");
+			insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/product2/acctsFromAccts3.tsv"); // "/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
+			acctsHScores.clear();
+			acctsHScores = null;		
 		
-		insertUserHealthScore("/Users/borongzhou/test/hostAnalysis/endUserHealthScoreMonthly.tsv");
-		insertBNAenduserObject("/Users/borongzhou/test/hostAnalysis/usageEnduserOut.tsv");
+			insertUserHealthScore("/Users/borongzhou/test/hostAnalysis/product2/hostUserHealthScore.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/hostAnalysis/product2/usageEnduser3.tsv");
 
-		usersHScores.clear();
-		usersHScores = null;
+			usersHScores.clear();
+			usersHScores = null;
+		} catch(Exception ex) {
+			ex.printStackTrace(System.out);
+		}
 	}
 
 	@Before
@@ -120,34 +123,33 @@ public class InsertDocumentApp {
 
 		LinkedHashSet<Health> list = null;
 		Health score = null;
-		Integer eventNum = 0;
-		Integer custNum = 1;
-		long maxVal = 0;
-		long scoreInt = 0;
-
-		Random rm = new Random(new Date().getTime());
+		String acctId = null;
+		double maxScore = 0.0;
+		double mScore = 0.0;
+		int totalRecords = 0;
+		int invalidRecords = 0;
 		while ((line = br.readLine()) != null) {
-			if (line.contains("eventNum"))
+			
+			if (line.contains("mScore"))
 				continue;
+			totalRecords++;
 			
 			splits = line.split("\t");
-			eventNum = Integer.parseInt(splits[0]);
-			custNum = Integer.parseInt(splits[1]);
-			custNum = (custNum == null)? 1 : custNum;
-			String acctId = splits[2].trim();
+			acctId = splits[2].toLowerCase().trim();
+			
 			list = acctsHScores.get(acctId);
 			if (list == null) {
 				list = new LinkedHashSet<Health>();
 				acctsHScores.put(acctId, list);
 			}
+			mScore = Double.parseDouble(splits[0]);
+			maxScore = Double.parseDouble(splits[1]);
 			score = new Health();
-			scoreInt = Math.round(100.0*eventNum / (621.0*custNum)); 
-			scoreInt = (scoreInt > 100)? (95 + (scoreInt % 5)) : scoreInt;
-			scoreInt = Math.abs((scoreInt < 10)? (rm.nextLong() % 10 + 1) : scoreInt);
-			score.setScore(String.valueOf(scoreInt));
+			long myScore = Math.round(100*mScore / maxScore);
+			if (myScore > 100)
+				System.out.printf("mScore=%f, maxScore=%f, myScore=%d\n", mScore, maxScore, myScore);
+			score.setScore(String.valueOf(myScore));
 			score.setCreated(sFormat.parse(splits[4] + "01"));
-
-			maxVal = (maxVal < scoreInt)? scoreInt : maxVal;
 			
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -160,7 +162,7 @@ public class InsertDocumentApp {
 
 		br.close();
 		
-		System.out.printf("max Value %d\n", maxVal);
+		System.out.printf("max Score %d with invalid scores %d\ttotal scores %d\n", Math.round(maxScore), invalidRecords, totalRecords);
 	}
 
 
@@ -173,28 +175,45 @@ public class InsertDocumentApp {
 		String[] splits = null;
 		LinkedHashSet<Health> list = null;
 		Health score = null;
-		Double eventNum = 0.0;
-		Double maxVal = 0.0;
-		long longVal;
-		// eventNum        acctId  userName        month
+		Double mScore = 0.0;
+		Double maxScore = 0.0;
+		String acctId = null;
+		String userId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
 		while ((line = br.readLine()) != null) {
-			if (line.contains("eventNum"))
+			
+			if (line.contains("mScore"))
 				continue;
+			totalRecords++;
 			
 			splits = line.split("\t");
-			eventNum = Double.parseDouble(splits[0]);
+			mScore = Double.parseDouble(splits[0]);
+			maxScore = Double.parseDouble(splits[1]);
 		
-			String userName = splits[2].trim();
-			list = usersHScores.get(userName);
+			userId = splits[2].trim();
+			acctId = splits[3].trim();
+
+			if (AcctMappping.get(acctId.toLowerCase()) == null) {
+				invalidRecords++;
+				continue;
+			}
+			
+			userId = acctId + "-" + userId;
+			userId = userId.toLowerCase();
+			list = usersHScores.get(userId);
 			if (list == null) {
 				list = new LinkedHashSet<Health>();
-				usersHScores.put(userName, list);
+				usersHScores.put(userId, list);
 			}
-			longVal = Math.round(100*eventNum / 32.1);
-			maxVal = (maxVal < longVal)? longVal : maxVal;
+			
+			long myScore = Math.round(100.0*mScore / maxScore);
+			if (myScore > 100)
+				System.out.printf("mScore=%f, maxScore=%f, myScore=%d\n", mScore, maxScore, myScore);
+			
 			score = new Health();
-			score.setScore(String.valueOf(longVal));
-			score.setCreated(sFormat.parse(splits[3] + "01"));
+			score.setScore(String.valueOf(myScore));
+			score.setCreated(sFormat.parse(splits[5] + "01"));
 
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -208,7 +227,7 @@ public class InsertDocumentApp {
 
 		br.close();
 
-		System.out.printf("max Value %f\n", maxVal);
+		System.out.printf("max Score %d with invalid records %d\ttotal records %d\n", Math.round(maxScore), invalidRecords, totalRecords);
 
 	}
 
@@ -229,7 +248,7 @@ public class InsertDocumentApp {
 
 			System.out.println(user.count());
 			
-			int count = 20;
+			int count = 10;
 			while (count-- > 0 && cursor.hasNext()) {
 				System.out.println(cursor.next());
 			}
@@ -241,7 +260,7 @@ public class InsertDocumentApp {
 //			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
 			
 			DBCursor cursorDoc = account.find(whereQuery);
-			count = 20;
+			count = 10;
 			while (count--> 0 && cursorDoc.hasNext()) {
 				System.out.println(cursorDoc.next());
 			}
@@ -325,11 +344,12 @@ public class InsertDocumentApp {
 				mydbObject.put("name", acct.getName());
 				mydbObject.put("region", acct.getRegion());
 				mydbObject.put("stage", acct.getStage());
-				mydbObject.put("tier", acct.getTier());	
+				mydbObject.put("tier", acct.getTier());		
+				mydbObject.put("supportLevel", acct.getSupportLevel());
 				mydbObject.put("industry", acct.getIndustry());	
 				mydbObject.put("gORl", acct.getGORl());				
 				mydbObject.put("churn", acct.isChurn());				
-				event = AcctDates.get(acct.getAcctId());
+				event = AcctDates.get(acct.getAcctId().toLowerCase());
 				if (event == null) {
 					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
 				}
@@ -346,9 +366,9 @@ public class InsertDocumentApp {
 				mydbObject.put("renewalDate", dates.getRenewalDate());
 				mydbObject.put("churnDate", dates.getChurnDate());
 				
-				mydbObject.put("healthScores", acctsHScores.get(acct.getAcctId()));
+				mydbObject.put("healthScores", acctsHScores.get(acct.getAcctId().toLowerCase()));
 
-				AcctMappping.put(acct.getAcctId(), acct.get_id().toString());
+				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
 								
 				feeds.add(mydbObject);
 				mydbObject = null;
@@ -443,9 +463,9 @@ public class InsertDocumentApp {
 		
 	static void loadEvents() throws IOException {
 
-		String acctDates = "/Users/borongzhou/test/hostAnalysis/acctFirstLastDate.tsv";
-		String userDates = "/Users/borongzhou/test/hostAnalysis/enduserFirstLastDate.tsv";
-		String churnDates = "/Users/borongzhou/test/hostAnalysis/acctDates2.tsv";
+		String acctDates = "/Users/borongzhou/test/hostAnalysis/product2/acctFirstLastDate3.tsv";
+		String userDates = "/Users/borongzhou/test/hostAnalysis/product2/userFirstLastDate3.tsv";
+		String churnDates = "/Users/borongzhou/test/hostAnalysis/product2/acctDates3.tsv";
 		
 		File sFile = new File(acctDates);
 		BufferedReader br = new BufferedReader(new FileReader(sFile));
@@ -456,7 +476,7 @@ public class InsertDocumentApp {
 		while ((line = br.readLine()) != null) {
 			splits = line.split("\t");
 			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			AcctDates.put(splits[2], event);
+			AcctDates.put(splits[2].toLowerCase(), event);
 		}
 		
 		br.close();
@@ -528,18 +548,18 @@ public class InsertDocumentApp {
 				
 				mydbObject.put("_id", ensuser.get_id());
 				mydbObject.put("accountId", ensuser.getAccountId());
-				mydbObject.put("name", ensuser.getName());	
+				mydbObject.put("name", ensuser.getUserId());	
 
-				event = UserDates.get(ensuser.getName());
+				event = UserDates.get(ensuser.getUserId());
 				if (event == null) {
-					System.out.printf("no event for user: Name=%s\n", ensuser.getName());
+					System.out.printf("no event for user: Name=%s\n", ensuser.getUserId());
 					continue;
 					
 				}
 				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
 				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
-
-				mydbObject.put("healthScores", usersHScores.get(ensuser.getName()));
+				String userId = ensuser.getAcctId() + "-" + ensuser.getUserId();
+				mydbObject.put("healthScores", usersHScores.get(userId.toLowerCase()));
 				
 				feeds.add(mydbObject);
 				mydbObject = null;
@@ -632,7 +652,8 @@ public class InsertDocumentApp {
 	public static class BNAendUser {
 		private Object _id = null;
 		private Object accountId = null;
-		private String name = null;
+		private String acctId = null;
+		private String userId = null;
 		
 		public BNAendUser(String data) {
 			if (data == null || data.isEmpty())
@@ -642,10 +663,11 @@ public class InsertDocumentApp {
 			if (splits.length != 4)
 				return;
 			
-			this.name = splits[2];
+			this.userId = splits[2];
 			this._id = new ObjectId();
 
-			String acctId = splits[0].trim();
+			String acctId = splits[0].toLowerCase().trim();
+			this.acctId = acctId;
 			if (AcctMappping.get(acctId) == null) {
 				System.out.println("no objectId for " + acctId);
 			}
@@ -659,57 +681,57 @@ public class InsertDocumentApp {
 		public Object getAccountId() {
 			return accountId;
 		}
-		public String getName() {
-			return name;
+		public String getAcctId() {
+			return acctId;
+		}
+
+		public String getUserId() {
+			return userId;
 		}
 
 	}
-	
+		  
 	public static class BNAacct {
 		private Object _id = null;
 		private String acctId = null;
 		private String acctName = null;
 		private String csmName = null;
 		private String salesLead = null;
+		private String tier = null;
 		private String location = null;
 		private String region = null;
+		private String supportLevel = null;
 		private String endUserCount = null;
-		private String mrr = null;
 		private String arr = null;
-		private String tier = null;
+		private String mrr = null;
 		private String stage = null;
-		private String industry = null;
 		private String gORl = null;
+		private String industry = null;
 		private boolean churn = false;
 		
 		public BNAacct(String data) {
 			if (data == null || data.isEmpty())
 				return;
-			// 116080	Keri Keeling	Patrick Townsend	The Martin-Brower Company, L.L.C.	IL	Customer	Premium	100	138499.61	Budgeting	JD Edwards	Food and Beverage	20101209	2010	4	12	5	9	1008	false
+			
 			String[] splits = data.split("\t");
-			if (splits.length != HOST_ACCT_V2.values().length)
+			if (splits.length != HOST_ACCT_V3.values().length)
 				return;
 			
-			this.acctId = splits[HOST_ACCT_V2.acctId.ordinal()].trim();
-			this.acctName = splits[HOST_ACCT_V2.acctName.ordinal()].trim();
-			acctName = "@".equals(acctName)? "unknown" : acctName;
-			this.csmName = splits[HOST_ACCT_V2.csmName.ordinal()].trim();
-			csmName = "@".equals(csmName)? "unknown" : csmName;
-			this.salesLead = splits[HOST_ACCT_V2.salesLead.ordinal()];
-			salesLead = "@".equals(salesLead)? "unknown" : salesLead;
-			this.location = splits[HOST_ACCT_V2.state.ordinal()];
-			location = "@".equals(location)? "unknown" : location;
-			this.endUserCount = splits[HOST_ACCT_V2.numEmp.ordinal()];
-			this.arr = splits[HOST_ACCT_V2.annRev.ordinal()];
-			float arrFlot = Float.parseFloat(arr);
-			this.mrr = String.valueOf(arrFlot/12.0);
-			this.tier = splits[HOST_ACCT_V2.tier.ordinal()];
-			tier = "@".equals(tier)? "unknown" : tier;
-			this.industry = splits[HOST_ACCT_V2.industry.ordinal()];
-			industry = "@".equals(industry)? "unknown" : industry;
-			this.gORl = splits[HOST_ACCT_V2.gORl.ordinal()];
-			gORl = "@".equals(gORl)? "unknown" : gORl;
-			this.churn = Boolean.parseBoolean(splits[HOST_ACCT_V2.churn.ordinal()]);
+			this.acctId = splits[HOST_ACCT_V3.acctId.ordinal()].trim();
+			this.acctName = splits[HOST_ACCT_V3.acctName.ordinal()].trim();
+			this.csmName = splits[HOST_ACCT_V3.csmName.ordinal()].trim();
+			this.salesLead = splits[HOST_ACCT_V3.salesLead.ordinal()];
+			this.tier = splits[HOST_ACCT_V3.tier.ordinal()];
+			this.location = splits[HOST_ACCT_V3.state.ordinal()];
+			this.region = splits[HOST_ACCT_V3.region.ordinal()];
+			this.supportLevel = splits[HOST_ACCT_V3.supportLevel.ordinal()];
+			this.endUserCount = splits[HOST_ACCT_V3.numEmp.ordinal()];
+			this.arr = splits[HOST_ACCT_V3.annRev.ordinal()];
+			this.mrr = splits[HOST_ACCT_V3.mrr.ordinal()];
+			this.stage = splits[HOST_ACCT_V3.stage.ordinal()];
+			this.gORl = splits[HOST_ACCT_V3.gORl.ordinal()];
+			this.industry = splits[HOST_ACCT_V3.industry.ordinal()];
+			this.churn = Boolean.parseBoolean(splits[HOST_ACCT_V3.churn.ordinal()]);
 			
 			this._id = new ObjectId();
 		}
@@ -762,6 +784,9 @@ public class InsertDocumentApp {
 		public boolean isChurn() {
 			return churn;
 		}
+		public String getSupportLevel() {
+			return supportLevel;
+		}
 
 		@Override
 		public String toString() {
@@ -769,6 +794,24 @@ public class InsertDocumentApp {
 		}
 	}
 
+
+	static enum HOST_ACCT_V3 {
+		acctId,
+		acctName,
+		csmName,
+		salesLead,
+		tier,
+		state,
+		region,
+		supportLevel,
+		numEmp,
+		annRev,
+		mrr,
+		stage,
+		gORl,
+		industry,
+		churn
+	}
 	
 	static enum HOST_ACCT_V2 {		
 	   acctId,
