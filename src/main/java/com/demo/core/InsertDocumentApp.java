@@ -597,7 +597,7 @@ public class InsertDocumentApp {
 				score.put("_id", new ObjectId());
 				score.put("created", sFormat.parse(splits[OPEN_ACCT.month.ordinal()] + "01"));
 				score.put("score", "");
-				score.put("scoreType", score.scoreType);
+				score.put("scoreType", "");
 				
 				list.add(score);
 				
