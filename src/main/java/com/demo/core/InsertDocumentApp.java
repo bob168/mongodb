@@ -41,28 +41,45 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "10.0.9.11"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-fa8e12345678900000000002"; // "bow-fa8e12345678900000000000";
+	private static final String ipAddr = "ec2-23-22-156-75.compute-1.amazonaws.com"; //"10.0.9.11"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String dbName = "bow-hostOppty"; //"bow-fa8e12345678900000000002"; // "bow-fa8e12345678900000000000";
 	
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
+	private Map<String, LinkedHashSet<Opportunity>> acctOppties = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
 	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyyMMdd"); //"yyyy-MM-dd hh:mm:ss.SSS");
 	private static final Gson GSON = new Gson();
 
 	@Test
-	public void insert()  {
+	public void insertOpenVPN()  {
+		
+		try {
+			
+			insertEntireBNAaccountObject("/Users/borongzhou/test/openVPN/openAcctsExt.tsv");
+			
+		} catch(Exception ex) {
+			ex.printStackTrace(System.out);
+		}
+	}
+
+	
+	@Test
+	public void insertHost()  {
 		
 		try {
 			loadEvents();
-			insertAcctHealthScore("/Users/borongzhou/test/hostAnalysis/product2/hostAcctHealthScore.tsv");
-			insertBNAaccountObject("/Users/borongzhou/test/hostAnalysis/product2/acctsFromAccts3.tsv"); // "/Users/borongzhou/test/hostAnalysis/acctsFromAcctOutMRR.tsv");
+			insertAcctHealthScore("/Users/borongzhou/test/bnaAnalytics/product2/hostAcctHealthScore.tsv");
+			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
+			insertBNAaccountObject("/Users/borongzhou/test/bnaAnalytics/product2/acctsFromAccts3.tsv");
 			acctsHScores.clear();
-			acctsHScores = null;		
+			acctsHScores = null;
+			acctOppties.clear();
+			acctOppties = null;
 		
-			insertUserHealthScore("/Users/borongzhou/test/hostAnalysis/product2/hostUserHealthScore.tsv");
-			insertBNAenduserObject("/Users/borongzhou/test/hostAnalysis/product2/usageEnduser3.tsv");
-
+			insertUserHealthScore("/Users/borongzhou/test/bnaAnalytics/product2/hostUserHealthScore.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/bnaAnalytics/product2/usageEnduser3.tsv");
+			
 			usersHScores.clear();
 			usersHScores = null;
 		} catch(Exception ex) {
@@ -78,11 +95,12 @@ public class InsertDocumentApp {
 		AcctScoring = new HashMap<String, Double>();
 		acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
 		usersHScores = new HashMap<String, LinkedHashSet<Health>>();
+		acctOppties = new HashMap<String, LinkedHashSet<Opportunity>>();
 		ChurnRenewalDates = new HashMap<String, AcctDates>();
 	}
 	
 	@After
-	public void teranDown() {
+	public void tearDown() {
 
 		AcctDates.clear();
 		AcctDates = null;
@@ -104,6 +122,11 @@ public class InsertDocumentApp {
 		if (usersHScores != null) {
 			usersHScores.clear();
 			usersHScores = null;
+		}
+
+		if (acctOppties != null) {
+			acctOppties.clear();
+			acctOppties = null;
 		}
 		
 		ChurnRenewalDates.clear();
@@ -275,6 +298,165 @@ public class InsertDocumentApp {
 		}
 	}
 
+
+	public static class Opportunity extends BasicDBObject {
+		
+		ObjectId _id = null;
+		String acctId = null;
+		String opptyId = null;
+		String name = null;
+		String nextStep = null;
+		String stage = null;
+		String owner = null;
+		String probability = null;
+		String leadSource = null;
+		String externalService = null;
+		String externalServiceId = null;
+		String amount = null;
+		String campaignId = null;
+		Date closeDate = null;
+		Date lastActivity = null;
+		Date created = null;
+		String description = null;
+		String expectedRevenue = null;
+		String forecastCategory = null;
+		String product = null;
+		boolean closed = false;
+		boolean deleted = false;
+		boolean open = false;
+		
+		public void set(String data) {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String[] splits = data.split("\t");
+			if (splits.length != HOST_OPPTY.values().length)
+				return;
+			
+			this.acctId = splits[HOST_OPPTY.acctId.ordinal()];
+			this.opptyId = splits[HOST_OPPTY.opptyId.ordinal()];
+			this.name = splits[HOST_OPPTY.opptyName.ordinal()];
+			this.nextStep = splits[HOST_OPPTY.nextStep.ordinal()];
+			this.stage = splits[HOST_OPPTY.stage.ordinal()];
+			this.owner = splits[HOST_OPPTY.opptyOwner.ordinal()];
+			this.probability = splits[HOST_OPPTY.probability.ordinal()];
+			this.leadSource = splits[HOST_OPPTY.leadSource.ordinal()];
+			this.externalService = splits[HOST_OPPTY.externalService.ordinal()];
+			this.externalServiceId = splits[HOST_OPPTY.externalServiceId.ordinal()];
+			this.amount = splits[HOST_OPPTY.amount.ordinal()];
+			this.campaignId = splits[HOST_OPPTY.campaignId.ordinal()];
+			this.product = splits[HOST_OPPTY.opptyProducts.ordinal()];
+					
+			String str = splits[HOST_OPPTY.closeDate.ordinal()];
+			try {
+				this.closeDate = "-9999".equals(str)? null : sFormat.parse(str);
+			} catch (ParseException e) {
+				this.closeDate = null;
+			}
+			str = splits[HOST_OPPTY.lastActivity.ordinal()];
+			try {
+				this.lastActivity = "-9999".equals(str)? null : sFormat.parse(str);
+			} catch (ParseException e) {
+				this.lastActivity = null;
+			}
+			str = splits[HOST_OPPTY.createdDate.ordinal()];
+			try {
+				this.created = "-9999".equals(str)? null : sFormat.parse(str);
+			} catch (ParseException e) {
+				this.created = null;
+			}
+			
+			this.description = splits[HOST_OPPTY.description.ordinal()];
+			this.expectedRevenue = splits[HOST_OPPTY.expectedRevenue.ordinal()];
+			this.forecastCategory = splits[HOST_OPPTY.forecastCategory.ordinal()];
+			this.closed = Boolean.parseBoolean(splits[HOST_OPPTY.closed.ordinal()]);
+			this.deleted = Boolean.parseBoolean(splits[HOST_OPPTY.deleted.ordinal()]);
+			this.open = Boolean.parseBoolean(splits[HOST_OPPTY.open.ordinal()]);
+			
+			this._id = new ObjectId();
+		}
+		
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getAcctId() {
+			return acctId;
+		}
+		public String getOpptyId() {
+			return opptyId;
+		}
+		public String getName() {
+			return name;
+		}
+		public String getNextStep() {
+			return nextStep;
+		}
+		public String getStage() {
+			return stage;
+		}
+		public String getOwner() {
+			return owner;
+		}
+		public String getProbability() {
+			return probability;
+		}
+
+		public String getLeadSource() {
+			return leadSource;
+		}
+		public String getExternalService() {
+			return externalService;
+		}
+		public String getExternalServiceId() {
+			return externalServiceId;
+		}
+		public String getAmount() {
+			return amount;
+		}
+		public String getCampaignId() {
+			return campaignId;
+		}
+		public Date getCloseDate() {
+			return closeDate;
+		}
+		public Date getLastActivity() {
+			return lastActivity;
+		}
+		public Date getCreated() {
+			return created;
+		}
+		public String getDescription() {
+			return description;
+		}
+		public String getExpectedRevenue() {
+			return expectedRevenue;
+		}
+		public String getForecastCategory() {
+			return forecastCategory;
+		}
+		public boolean isClosed() {
+			return closed;
+		}
+		public boolean isDeleted() {
+			return deleted;
+		}
+		public boolean isOpen() {
+			return open;
+		}
+		public String getProduct() {
+			return product;
+		}
+
+		@Override
+		public String toString() {
+			
+			return this.opptyId;
+//			return new Gson().toJson(this);
+		}
+	}
+	
+	
 	public static class Health extends BasicDBObject {
 		
 		public ObjectId _id = new ObjectId();
@@ -310,6 +492,144 @@ public class InsertDocumentApp {
 			return GSON.toJson(this);
 		}
 	}
+	
+	void insertOpportunityObject(String srcFile) throws Exception {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = null;
+
+		LinkedHashSet<Opportunity> list = null;
+		String acctId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
+		while ((line = br.readLine()) != null) {
+			
+			if (line.contains("mScore"))
+				continue;
+			totalRecords++;
+			
+			Opportunity oppty = new Opportunity();
+			oppty.set(line);
+
+			acctId = oppty.getAcctId().toLowerCase();
+			list = acctOppties.get(acctId);
+			if (list == null) {
+				list = new LinkedHashSet<Opportunity>();
+				acctOppties.put(acctId, list);
+			}
+			
+			oppty.put("_id", oppty._id);
+			oppty.put("opptyId", oppty.getOpptyId());
+			oppty.put("name", oppty.getName());
+			if ("unknown".equals(oppty.getNextStep()) == false)
+				oppty.put("nextStep", oppty.getNextStep());
+			oppty.put("stage", oppty.getStage());
+			oppty.put("owner", oppty.getOwner());
+			oppty.put("probability", oppty.getProbability());
+			oppty.put("leadSource", oppty.getLeadSource());
+			oppty.put("externalService", oppty.getExternalService());
+			if ("unknown".equals(oppty.getExternalServiceId()) == false)
+				oppty.put("externalServiceId", oppty.getExternalServiceId());
+			oppty.put("amount", oppty.getAmount());
+			if ("cId".equals(oppty.getCampaignId()) == false)
+				oppty.put("campaignId", oppty.getCampaignId());
+			oppty.put("closeDate", oppty.getCloseDate());
+			if (oppty.getLastActivity() != null)
+				oppty.put("lastActivity", oppty.getLastActivity());
+			oppty.put("created", oppty.getCreated());
+			oppty.put("expectedRevenue", oppty.getExpectedRevenue());
+			oppty.put("forecastCategory", oppty.getForecastCategory());
+			oppty.put("closed", oppty.isClosed());
+//			oppty.put("deleted", oppty.isDeleted());
+			oppty.put("open", oppty.isOpen());
+			if ("unknown".equals(oppty.getDescription()) == false)
+				oppty.put("description", oppty.getDescription());
+			if (oppty.getProduct() != null && "unknown".equals(oppty.getProduct()) == false)
+				oppty.put("product", oppty.getProduct());
+			
+			list.add(oppty);
+		}
+
+		br.close();
+		
+		System.out.printf("account opportunities %d with invalid scores %d\ttotal scores %d\n", acctOppties.size(), invalidRecords, totalRecords);
+	}
+	
+	void insertEntireBNAaccountObject(String srcFile) throws Exception {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, 27017);
+			DB db = mongo.getDB(dbName);
+
+			DBCollection table = db.getCollection("account");
+			table.drop();
+			table = db.getCollection("account");
+			
+			List<DBObject> feeds = new LinkedList<DBObject>();
+			int threshold = 1000;
+			
+			File sFile = new File(srcFile);
+			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			String line = null;
+			String[] splits = null;
+			while (threshold-- > 0 && (line = br.readLine()) != null) {
+
+				BasicDBObject mydbObject = new BasicDBObject();
+				
+				splits = line.split("\t");
+				if (splits == null || splits.length != OPEN_ACCT.values().length)
+					return;
+				
+				mydbObject.put("_id", new ObjectId());
+				mydbObject.put("name", splits[OPEN_ACCT.acctId.ordinal()].trim());	
+				mydbObject.put("month", splits[OPEN_ACCT.month.ordinal()].trim());	
+				mydbObject.put("duration", splits[OPEN_ACCT.duration.ordinal()].trim());				
+				mydbObject.put("churn", Boolean.parseBoolean(splits[OPEN_ACCT.churn.ordinal()].trim()));
+				mydbObject.put("firstEvent", usageDateFormat.parse(splits[OPEN_ACCT.startDT.ordinal()].trim()));
+				mydbObject.put("lastEvent", usageDateFormat.parse(splits[OPEN_ACCT.endDT.ordinal()].trim()));
+				
+				LinkedHashSet<BasicDBObject> list = new LinkedHashSet<BasicDBObject>();
+				BasicDBObject score = new BasicDBObject();
+				
+				score.put("_id", new ObjectId());
+				score.put("created", sFormat.parse(splits[OPEN_ACCT.month.ordinal()] + "01"));
+				score.put("score", "");
+				score.put("scoreType", score.scoreType);
+				
+				list.add(score);
+				
+				mydbObject.put("healthScores", list);
+				
+				feeds.add(mydbObject);
+				mydbObject = null;
+				
+				if (threshold == 0) {
+					table.insert(feeds);
+					threshold = 1000;
+					feeds.clear();
+					feeds = new LinkedList<DBObject>();
+				}
+			}
+			if (threshold > 0) {
+				table.insert(feeds);
+				feeds.clear();
+				feeds = null;
+			}
+			
+			br.close();
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (MongoException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	
 	void insertBNAaccountObject(String srcFile) throws Exception {
 
@@ -366,7 +686,9 @@ public class InsertDocumentApp {
 				mydbObject.put("renewalDate", dates.getRenewalDate());
 				mydbObject.put("churnDate", dates.getChurnDate());
 				
-				mydbObject.put("healthScores", acctsHScores.get(acct.getAcctId().toLowerCase()));
+				String acctId = acct.getAcctId().toLowerCase();
+				mydbObject.put("healthScores", acctsHScores.get(acctId));
+				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
 
 				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
 								
@@ -463,9 +785,9 @@ public class InsertDocumentApp {
 		
 	static void loadEvents() throws IOException {
 
-		String acctDates = "/Users/borongzhou/test/hostAnalysis/product2/acctFirstLastDate3.tsv";
-		String userDates = "/Users/borongzhou/test/hostAnalysis/product2/userFirstLastDate3.tsv";
-		String churnDates = "/Users/borongzhou/test/hostAnalysis/product2/acctDates3.tsv";
+		String acctDates = "/Users/borongzhou/test/bnaAnalytics/product2/acctFirstLastDate3.tsv";
+		String userDates = "/Users/borongzhou/test/bnaAnalytics/product2/userFirstLastDate3.tsv";
+		String churnDates = "/Users/borongzhou/test/bnaAnalytics/product2/acctDates3.tsv";
 		
 		File sFile = new File(acctDates);
 		BufferedReader br = new BufferedReader(new FileReader(sFile));
@@ -794,7 +1116,43 @@ public class InsertDocumentApp {
 		}
 	}
 
+	static enum HOST_OPPTY {
+		acctId,
+		opptyId,
+		opptyName,
+		nextStep,
+		stage,
+		opptyOwner,
+		probability,
+		leadSource,
+		externalService,
+		externalServiceId,
+		amount,
+		campaignId,
+		closeDate,
+		lastActivity,
+		createdDate,
+		expectedRevenue,
+		forecastCategory,
+		closed,
+		deleted,
+		open,
+		opptyProducts,
+		description
+	}
 
+	static enum OPEN_ACCT {
+		acctId,
+		bandwidth,
+		maxBandwidth,
+		minBandwidth,
+		duration,
+		startDT,
+		endDT,
+		month,
+		churn
+	}
+	
 	static enum HOST_ACCT_V3 {
 		acctId,
 		acctName,
