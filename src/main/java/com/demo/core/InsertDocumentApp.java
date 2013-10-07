@@ -20,14 +20,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
-import com.bluenose.powder.util.DateWrapper;
 import com.google.gson.Gson;
 import com.mongodb.BasicDBObject;
+import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
 import com.mongodb.Mongo;
+import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
  
 /**
@@ -43,9 +44,12 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "ec2-23-22-156-75.compute-1.amazonaws.com"; //"10.0.9.11"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final String dbName = "bow-5229f0663004e751ecdf8428"; // "bow-open"; // "bow-fa8e12345678900000000000";
-	
+	private static final String ipAddr = "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final int port = 37017; //  37017; // 27017; //  
+	private static final String dbName = "bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; // "bow-bna";
+	private static final String username = "bnaadmin";
+	private static final String password = "bluenose!";
+			
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Opportunity>> acctOppties = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
@@ -72,16 +76,16 @@ public class InsertDocumentApp {
 		
 		try {
 			loadEvents();
-			insertAcctHealthScore("/Users/borongzhou/test/fake/product/bnaAcctHealthScore.tsv");
+			insertAcctHealthScore("/Users/borongzhou/test/fake/product/acctHealthScoreExt.tsv");
 //			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
-			insertBNAaccountObject("/Users/borongzhou/test/fake/product/acctsFromAcct.tsv");
+			insertBNAaccountObject("/Users/borongzhou/test/fake/product/acctsFromAcct.tsv", "524c9ffbf7864895bdd8ee69");
 			acctsHScores.clear();
 			acctsHScores = null;
 //			acctOppties.clear();
 //			acctOppties = null;
 		
-			insertUserHealthScore("/Users/borongzhou/test/fake/product/bnaUserHealthScore.tsv");
-			insertBNAenduserObject("/Users/borongzhou/test/fake/product/usageEnduser.tsv");
+			insertUserHealthScore("/Users/borongzhou/test/fake/product/endUserHealthScoreExt.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/fake/product/endUserFromUsage.tsv");
 			
 			usersHScores.clear();
 			usersHScores = null;
@@ -171,7 +175,7 @@ public class InsertDocumentApp {
 			}
 			mScore = Integer.parseInt(splits[1]);
 			score = new Health();
-			score.setScore(String.valueOf(mScore));
+			score.setScore(mScore);
 			score.setCreated(sFormat.parse(splits[2] + "01"));
 			
 			score.put("_id", score._id);
@@ -199,8 +203,6 @@ public class InsertDocumentApp {
 		LinkedHashSet<Health> list = null;
 		Health score = null;
 		String acctId = null;
-		double maxScore = 0.0;
-		double mScore = 0.0;
 		int totalRecords = 0;
 		int invalidRecords = 0;
 		while ((line = br.readLine()) != null) {
@@ -210,21 +212,17 @@ public class InsertDocumentApp {
 			totalRecords++;
 			
 			splits = line.split("\t");
-			acctId = splits[2].toLowerCase().trim();
+			acctId = splits[1].toLowerCase().trim();
 			
 			list = acctsHScores.get(acctId);
 			if (list == null) {
 				list = new LinkedHashSet<Health>();
 				acctsHScores.put(acctId, list);
 			}
-			mScore = Double.parseDouble(splits[0]);
-			maxScore = Double.parseDouble(splits[1]);
 			score = new Health();
-			long myScore = Math.round(100*mScore / maxScore);
-			if (myScore > 100)
-				System.out.printf("mScore=%f, maxScore=%f, myScore=%d\n", mScore, maxScore, myScore);
-			score.setScore(String.valueOf(myScore));
-			score.setCreated(sFormat.parse(splits[4] + "01"));
+			int myScore = Integer.parseInt(splits[0]);
+			score.setScore((int)myScore);
+			score.setCreated(sFormat.parse(splits[3] + "01"));
 			
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -237,7 +235,7 @@ public class InsertDocumentApp {
 
 		br.close();
 		
-		System.out.printf("max Score %d with invalid scores %d\ttotal scores %d\n", Math.round(maxScore), invalidRecords, totalRecords);
+		System.out.printf("invalid scores %d\ttotal scores %d\n", invalidRecords, totalRecords);
 	}
 
 
@@ -250,8 +248,6 @@ public class InsertDocumentApp {
 		String[] splits = null;
 		LinkedHashSet<Health> list = null;
 		Health score = null;
-		Double mScore = 0.0;
-		Double maxScore = 0.0;
 		String acctId = null;
 		String userId = null;
 		int totalRecords = 0;
@@ -263,11 +259,9 @@ public class InsertDocumentApp {
 			totalRecords++;
 			
 			splits = line.split("\t");
-			mScore = Double.parseDouble(splits[0]);
-			maxScore = Double.parseDouble(splits[1]);
 		
-			userId = splits[2].trim();
-			acctId = splits[3].trim();
+			userId = splits[1].trim();
+			acctId = splits[2].trim();
 
 			if (AcctMappping.get(acctId.toLowerCase()) == null) {
 				invalidRecords++;
@@ -282,13 +276,10 @@ public class InsertDocumentApp {
 				usersHScores.put(userId, list);
 			}
 			
-			long myScore = Math.round(100.0*mScore / maxScore);
-			if (myScore > 100)
-				System.out.printf("mScore=%f, maxScore=%f, myScore=%d\n", mScore, maxScore, myScore);
-			
+			int myScore = Integer.parseInt(splits[0]);
 			score = new Health();
-			score.setScore(String.valueOf(myScore));
-			score.setCreated(sFormat.parse(splits[5] + "01"));
+			score.setScore((int)myScore);
+			score.setCreated(sFormat.parse(splits[4] + "01"));
 
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -302,7 +293,7 @@ public class InsertDocumentApp {
 
 		br.close();
 
-		System.out.printf("max Score %d with invalid records %d\ttotal records %d\n", Math.round(maxScore), invalidRecords, totalRecords);
+		System.out.printf("invalid records %d\ttotal records %d\n", invalidRecords, totalRecords);
 
 	}
 
@@ -311,9 +302,17 @@ public class InsertDocumentApp {
 	public void retrieve() {
 
 		try {
-			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB(dbName);
-
+//			Mongo mongo = new Mongo(ipAddr, port);
+//			DB db = mongo.getDB(dbName);
+			
+			MongoClient mongoClient = new MongoClient(ipAddr, port);
+			DB db = mongoClient.getDB("bow-bna");
+			boolean auth = db.authenticate(username, password.toCharArray());
+			if (!auth) {
+				System.out.println("authentication error!");
+				System.exit(1);	
+			}
+			
 			DBCollection user = db.getCollection("endUser");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
@@ -513,7 +512,7 @@ public class InsertDocumentApp {
 		
 		public ObjectId _id = new ObjectId();
 		public Date created = null;
-		public String score = "0";
+		public int score = 0;
 		public String scoreType = "auto";
 		
 		public ObjectId get_id() {
@@ -525,10 +524,10 @@ public class InsertDocumentApp {
 		public void setCreated(Date created) {
 			this.created = created;
 		}
-		public String getScore() {
+		public int getScore() {
 			return score;
 		}
-		public void setScore(String score) {
+		public void setScore(int score) {
 			this.score = score;
 		}
 		public String getScoreType() {
@@ -612,8 +611,9 @@ public class InsertDocumentApp {
 	void insertOpenAccountObject(String srcFile) throws Exception {
 
 		try {
-			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB(dbName);
+			MongoClient mongoClient = new MongoClient(ipAddr, port);
+			DB db = mongoClient.getDB(dbName);
+			boolean auth = db.authenticate("bnaadmin", "bluenose!".toCharArray());
 
 			DBCollection table = db.getCollection("account");
 			table.drop();
@@ -624,6 +624,8 @@ public class InsertDocumentApp {
 			
 			File sFile = new File(srcFile);
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			ObjectId custId = new ObjectId("524c9ffbf7864895bdd8ee75");
 			
 			String line = null;
 			String[] splits = null;
@@ -639,6 +641,8 @@ public class InsertDocumentApp {
 					return;
 
 				String acctId = splits[OPEN_ACCT.acctId.ordinal()].trim().toLowerCase();
+				 
+				mydbObject.put("customerId", custId); // openVPN
 				mydbObject.put("_id", new ObjectId());
 				mydbObject.put("name", acctId);	
 				mydbObject.put("usageId", acctId);
@@ -648,8 +652,8 @@ public class InsertDocumentApp {
 				mydbObject.put("totalDuration", splits[OPEN_ACCT.tDuration.ordinal()].trim());
 				dVal = Double.parseDouble(splits[OPEN_ACCT.avgDuration.ordinal()].trim());
 				mydbObject.put("avgDuration", dFormat.format(dVal));
-				mydbObject.put("firstEvent", new DateWrapper(new Date(Long.parseLong((splits[OPEN_ACCT.firstEvent.ordinal()].trim())) * 1000)).getCurrentDateStr());
-				mydbObject.put("lastEvent", new DateWrapper(new Date(Long.parseLong((splits[OPEN_ACCT.lastEvent.ordinal()].trim()))* 1000)).getCurrentDateStr());
+				mydbObject.put("firstEvent", new Date(Long.parseLong((splits[OPEN_ACCT.firstEvent.ordinal()].trim())) * 1000));
+				mydbObject.put("lastEvent", new Date(Long.parseLong((splits[OPEN_ACCT.lastEvent.ordinal()].trim()))* 1000));
 				dVal = Double.parseDouble(splits[OPEN_ACCT.livetime.ordinal()].trim());
 				Long iVal = Math.round(dVal); 
 				mydbObject.put("livetime", iVal);
@@ -683,11 +687,19 @@ public class InsertDocumentApp {
 	}
 	
 	
-	void insertBNAaccountObject(String srcFile) throws Exception {
+	void insertBNAaccountObject(String srcFile, String custIdStr) throws Exception {
 
 		try {
-			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB(dbName);
+//			Mongo mongo = new Mongo(ipAddr, port);
+//			DB db = mongo.getDB(dbName);
+
+			MongoClient mongoClient = new MongoClient(ipAddr, port);
+			DB db = mongoClient.getDB(dbName);
+			boolean auth = db.authenticate(username, password.toCharArray());
+			if (!auth) {
+				System.out.println("authentication error!");
+				System.exit(1);
+			}
 
 			DBCollection table = db.getCollection("account");
 			table.drop();
@@ -695,6 +707,8 @@ public class InsertDocumentApp {
 			
 			List<DBObject> feeds = new LinkedList<DBObject>();
 			int threshold = 1000;
+
+			ObjectId custId = new ObjectId(custIdStr);
 			
 			File sFile = new File(srcFile);
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
@@ -705,13 +719,14 @@ public class InsertDocumentApp {
 
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAacct acct = new BNAacct(line);
+				mydbObject.put("customerId", custId);
 				mydbObject.put("_id", acct.get_id());
 				mydbObject.put("usageId", acct.getAcctId());
-//				mydbObject.put("arr", acct.getArr());
+				mydbObject.put("arr", acct.getArr());
 //				mydbObject.put("mrr", acct.getMrr());
 				mydbObject.put("csmName", acct.getCsmName());
 				mydbObject.put("salesLead", acct.getSalesLead());
-//				mydbObject.put("endUserCount", acct.getEndUserCount());
+				mydbObject.put("endUserCount", acct.getEndUserCount());
 				mydbObject.put("location", acct.getLocation());
 				mydbObject.put("name", acct.getName());
 				mydbObject.put("region", acct.getRegion());
@@ -737,13 +752,17 @@ public class InsertDocumentApp {
 					dates = new AcctDates(null, null, null);
 					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
 				}
-//				mydbObject.put("contractDate", dates.getStartDate());				
+				mydbObject.put("contractDate", dates.getStartDate());	
 				mydbObject.put("renewalDate", dates.getRenewalDate());
 				mydbObject.put("churnDate", dates.getChurnDate());
 				
 				String acctId = acct.getAcctId().toLowerCase();
-				mydbObject.put("healthScores", acctsHScores.get(acctId));
-				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
+				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
+				if (hscores == null) {
+					System.out.printf("no hscore for account %s\n", acctId);
+				}
+				mydbObject.put("healthScores", hscores);
+//				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
 
 				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
 								
@@ -776,32 +795,46 @@ public class InsertDocumentApp {
 
 	public static void main(String[] args)  {
 		
-		// 1377414001;1377414018;24
-		System.out.println(new Date(1377414001));
-		System.out.println(new Date(1377414013));
-//		1377414001;1377414013;12
-		System.out.println((1377414013 - 1377414001));
+//		ObjectId objId = new ObjectId("5229f0663004e751ecdf841c");
+//		
+//		System.out.println(objId);
+//		
+//		for (int i = 0; i < 20; i++)
+//			System.out.println(new ObjectId());
 		
-		InsertDocumentApp app = new InsertDocumentApp();
-		app.setup();
-		app.insertOpenVPN();
-		app.tearDown();
+//		InsertDocumentApp app = new InsertDocumentApp();
+//		app.setup();
+//		app.insertOpenVPN();
+//		app.tearDown();
 		
-//		try {
-//			Mongo mongo = new Mongo("localhost", 27017);
-//			DB db = mongo.getDB("bow");
-//
-//			DBCollection collection = db.getCollection("hosting");
-//			collection.drop();
-//			collection = db.getCollection("hosting");
-//
+		try {
+			// mongodb://admin:password@localhost:27017/db
+//			MongoClient.connect(addr);
+			
+			MongoClient mongoClient = new MongoClient(ipAddr, port);
+			DB db = mongoClient.getDB("bow-openvpn");
+			boolean auth = db.authenticate(username, password.toCharArray());
+			if (!auth) {
+				System.out.println("authentication error!");
+				System.exit(1);
+			}
+			
+			DBCollection collection = db.getCollection("account");
+			collection.drop();
+			collection = db.getCollection("account");
+
+			InsertDocumentApp app = new InsertDocumentApp();
+			app.setup();
+			app.insertOpenVPN();
+			app.tearDown();
+			
 //			// 2. BasicDBObjectBuilder example
 //			System.out.println("BasicDBObjectBuilder example...");
 //			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
-//					.add("database", "bow").add("table", "hosting");
+//					.add("database", "bow").add("table", "account");
 //
 //			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
-//					.start().add("_id", new ObjectId()).add("records", "99")
+//					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
 //					.add("index", "vps_index1").add("active", "true");
 //
 //			documentBuilder.add("detail", documentBuilderDetail.get());
@@ -814,7 +847,7 @@ public class InsertDocumentApp {
 //			}
 //
 //			collection.remove(new BasicDBObject());
-//			
+			
 //			
 //			// 3. Map example
 //			System.out.println("Map example...");
@@ -837,10 +870,10 @@ public class InsertDocumentApp {
 //			}
 //
 //			collection.remove(new BasicDBObject());
-//
-//		} catch(Throwable ex) {
-//			ex.printStackTrace(System.out);
-//		}
+
+		} catch(Throwable ex) {
+			ex.printStackTrace(System.out);
+		}
 	}
 		
 	static void loadEvents() throws IOException {
@@ -900,9 +933,17 @@ public class InsertDocumentApp {
 	void insertBNAenduserObject(String srcFile) throws Exception {
 
 		try {
-			Mongo mongo = new Mongo(ipAddr, 27017);
-			DB db = mongo.getDB(dbName);
+//			Mongo mongo = new Mongo(ipAddr, port);
+//			DB db = mongo.getDB(dbName);
 
+			MongoClient mongoClient = new MongoClient(ipAddr, port);
+			DB db = mongoClient.getDB(dbName);
+			boolean auth = db.authenticate(username, password.toCharArray());
+			if (!auth) {
+				System.out.println("authentication error!");
+				System.exit(1);
+			}
+			
 			DBCollection table = db.getCollection("endUser");
 			table.drop();
 			table = db.getCollection("endUser");
@@ -931,8 +972,8 @@ public class InsertDocumentApp {
 				mydbObject.put("_id", ensuser.get_id());
 				mydbObject.put("accountId", ensuser.getAccountId());
 				mydbObject.put("name", ensuser.getUserId());	
-				mydbObject.put("firstEvent", ensuser.getFirstDT());
-				mydbObject.put("lastEvent", ensuser.getLastDT());
+				mydbObject.put("firstEvent", usageDateFormat.parse(ensuser.getFirstDT()));
+				mydbObject.put("lastEvent", usageDateFormat.parse(ensuser.getLastDT()));
 				
 //				event = UserDates.get(ensuser.getUserId());
 //				if (event == null) {
@@ -1046,13 +1087,13 @@ public class InsertDocumentApp {
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != 10)
+			if (splits.length != 2)
 				return;
 			
-			this.userId = splits[2];
+			this.userId = splits[1];
 			this._id = new ObjectId();
 
-			String acctId = splits[1].toLowerCase().trim();
+			String acctId = splits[0].toLowerCase().trim();
 			this.acctId = acctId;
 			if (AcctMappping.get(acctId) == null) {
 				System.out.println("no objectId for " + acctId);
@@ -1060,8 +1101,10 @@ public class InsertDocumentApp {
 			else
 				this.accountId = new ObjectId(AcctMappping.get(acctId));
 			
-			this.firstDT = splits[7];
-			this.lastDT = splits[8];
+			FirstLastEvent dates = UserDates.get(splits[0] + "\t" + splits[1]);
+			
+			this.firstDT = dates.firstDate;
+			this.lastDT = dates.lastDate;
 		}
 
 		public Object get_id() {
@@ -1096,9 +1139,11 @@ public class InsertDocumentApp {
 		private String location = null;
 		private String region = null;
 		private String supportLevel = null;
-		private String endUserCount = null;
-		private String arr = null;
-		private String mrr = null;
+		private int endUserCount = 0;
+		private long arr = 0L;
+		private long mrr = 0L;
+		private String contractedDT = null;
+		private String renewalDT = null;
 		private String stage = null;
 		private String gORl = null;
 		private String industry = null;
@@ -1109,24 +1154,27 @@ public class InsertDocumentApp {
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != HOST_ACCT_V3.values().length)
+			if (splits.length != BNA_ACCT.values().length)
 				return;
 			
-			this.acctId = splits[HOST_ACCT_V3.acctId.ordinal()].trim();
-			this.acctName = splits[HOST_ACCT_V3.acctName.ordinal()].trim();
-			this.csmName = splits[HOST_ACCT_V3.csmName.ordinal()].trim();
-			this.salesLead = splits[HOST_ACCT_V3.salesLead.ordinal()];
-			this.tier = splits[HOST_ACCT_V3.tier.ordinal()];
-			this.location = splits[HOST_ACCT_V3.state.ordinal()];
-			this.region = splits[HOST_ACCT_V3.region.ordinal()];
-			this.supportLevel = splits[HOST_ACCT_V3.supportLevel.ordinal()];
-//			this.endUserCount = splits[HOST_ACCT_V3.numEmp.ordinal()];
-//			this.arr = splits[HOST_ACCT_V3.annRev.ordinal()];
+			this.acctId = splits[BNA_ACCT.acctId.ordinal()].trim();
+			this.acctName = splits[BNA_ACCT.acctName.ordinal()].trim();
+			this.csmName = splits[BNA_ACCT.csmName.ordinal()].trim();
+			this.salesLead = splits[BNA_ACCT.salesLead.ordinal()];
+			this.tier = splits[BNA_ACCT.tier.ordinal()];
+			this.location = splits[BNA_ACCT.state.ordinal()];
+			this.region = splits[BNA_ACCT.region.ordinal()];
+			this.supportLevel = splits[BNA_ACCT.supportLevel.ordinal()];
+			this.endUserCount = Integer.parseInt(splits[BNA_ACCT.numOfEmp.ordinal()]);
+			double arrDouble = Double.parseDouble(splits[BNA_ACCT.arr.ordinal()]);
+			this.arr = (long) arrDouble*100;
 //			this.mrr = splits[HOST_ACCT_V3.mrr.ordinal()];
-			this.stage = splits[HOST_ACCT_V3.stage.ordinal()];
-//			this.gORl = splits[HOST_ACCT_V3.gORl.ordinal()];
-//			this.industry = splits[HOST_ACCT_V3.industry.ordinal()];
-			this.churn = Boolean.parseBoolean(splits[HOST_ACCT_V3.churn.ordinal()]);
+			this.stage = splits[BNA_ACCT.stage.ordinal()];
+			this.contractedDT = splits[BNA_ACCT.contractedDT.ordinal()];
+			this.renewalDT = splits[BNA_ACCT.renewalDT.ordinal()];
+//			this.gORl = splits[BNA_ACCT.gORl.ordinal()];
+//			this.industry = splits[BNA_ACCT.industry.ordinal()];
+			this.churn = Boolean.parseBoolean(splits[BNA_ACCT.churn.ordinal()]);
 			
 			this._id = new ObjectId();
 		}
@@ -1155,13 +1203,13 @@ public class InsertDocumentApp {
 		public String getRegion() {
 			return region;
 		}
-		public String getEndUserCount() {
+		public int getEndUserCount() {
 			return endUserCount;
 		}
-		public String getMrr() {
+		public long getMrr() {
 			return mrr;
 		}
-		public String getArr() {
+		public long getArr() {
 			return arr;
 		}
 		public String getTier() {
@@ -1181,6 +1229,12 @@ public class InsertDocumentApp {
 		}
 		public String getSupportLevel() {
 			return supportLevel;
+		}
+		public String getContractedDT() {
+			return contractedDT;
+		}
+		public String getRenewalDT() {
+			return renewalDT;
 		}
 
 		@Override
@@ -1225,6 +1279,24 @@ public class InsertDocumentApp {
 		livetime     // TODO:: convert integer
 	}
 
+	static enum BNA_ACCT {
+		  acctId,
+		  acctName,
+		  csmName,
+		  salesLead,
+		  tier,
+		  state,
+		  region,
+		  numOfEmp,
+		  arr,
+		  contractedDT,
+		  supportLevel,
+		  stage,
+		  renewalDT,
+		  churn
+	}
+	
+	
 	static enum HOST_ACCT_V3 {
 		acctId,
 		acctName,
