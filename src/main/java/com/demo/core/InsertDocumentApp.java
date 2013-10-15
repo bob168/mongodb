@@ -10,10 +10,12 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.bson.types.ObjectId;
 import org.junit.After;
@@ -22,12 +24,10 @@ import org.junit.Test;
 
 import com.google.gson.Gson;
 import com.mongodb.BasicDBObject;
-import com.mongodb.BasicDBObjectBuilder;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
-import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
  
@@ -44,9 +44,9 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final int port = 37017; //  37017; // 27017; //  
-	private static final String dbName = "bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; // "bow-bna";
+	private static final String ipAddr = "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.7"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final int port = 37017; //37017; // 27017; //  
+	private static final String dbName = "bow-replicon"; // "bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
 	private static final String username = "bnaadmin";
 	private static final String password = "bluenose!";
 			
@@ -56,6 +56,9 @@ public class InsertDocumentApp {
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
 	private static DecimalFormat dFormat = new DecimalFormat("################.##");
 	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyyMMdd"); //"yyyy-MM-dd hh:mm:ss.SSS");
+	private static SimpleDateFormat usageMonthFormat = new SimpleDateFormat("yyyyMM"); //"yyyy-MM-dd hh:mm:ss.SSS");
+	private static SimpleDateFormat usageFullDateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
+
 	private static final Gson GSON = new Gson();
 
 //	@Test
@@ -71,21 +74,21 @@ public class InsertDocumentApp {
 	}
 
 	
-	@Test
+//	@Test
 	public void insertHost()  {
 		
 		try {
 			loadEvents();
-			insertAcctHealthScore("/Users/borongzhou/test/fake/product/acctHealthScoreExt.tsv");
+			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/acctHealthScoreExt.tsv");
 //			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
-			insertBNAaccountObject("/Users/borongzhou/test/fake/product/acctsFromAcct.tsv", "524c9ffbf7864895bdd8ee69");
+			insertBNAaccountObject("/Users/borongzhou/test/replicon/product/acctsFromAcct.tsv", "524c9ffbf7864895bdd8ee6d"); //"524c9ffbf7864895bdd8ee69");
 			acctsHScores.clear();
 			acctsHScores = null;
 //			acctOppties.clear();
 //			acctOppties = null;
 		
-			insertUserHealthScore("/Users/borongzhou/test/fake/product/endUserHealthScoreExt.tsv");
-			insertBNAenduserObject("/Users/borongzhou/test/fake/product/endUserFromUsage.tsv");
+			insertUserHealthScore("/Users/borongzhou/test/replicon/product/endUserHealthScoreExt.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
 			
 			usersHScores.clear();
 			usersHScores = null;
@@ -306,7 +309,7 @@ public class InsertDocumentApp {
 //			DB db = mongo.getDB(dbName);
 			
 			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB("bow-bna");
+			DB db = mongoClient.getDB(dbName);
 			boolean auth = db.authenticate(username, password.toCharArray());
 			if (!auth) {
 				System.out.println("authentication error!");
@@ -317,7 +320,8 @@ public class InsertDocumentApp {
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
-//			whereQuery.put("accountId", new ObjectId("52051655e4b0b995b2e11c62")); 
+//			whereQuery.put("accountId", new ObjectId("52581e71f786f6bb1c4500d5")); 
+//			whereQuery.put("name", "18-101512");
 			DBCursor cursor = user.find(whereQuery);
 
 			System.out.println(user.count());
@@ -331,8 +335,8 @@ public class InsertDocumentApp {
 			DBCollection account = db.getCollection("account");
 			whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "mirion technologies inc");
-//			whereQuery.put("_id", new ObjectId("52051655e4b0b995b2e11c62"));
-			
+//			whereQuery.put("_id", new ObjectId("5255f58af786e6b83896681a"));
+//			whereQuery.put("usageId", "100130"); 
 			DBCursor cursorDoc = account.find(whereQuery);
 			count = 10;
 			while (count--> 0 && cursorDoc.hasNext()) {
@@ -715,46 +719,59 @@ public class InsertDocumentApp {
 			
 			String line = null;		
 			FirstLastEvent event = null;
-			while (threshold-- > 0 && (line = br.readLine()) != null) {
+			Set<String> acctSets = new HashSet<String>();
+			while (threshold > 0 && (line = br.readLine()) != null) {
 
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAacct acct = new BNAacct(line);
+				if (acctSets.contains(acct.getAcctId()))
+					continue;
+				else
+					acctSets.add(acct.getAcctId());
+				
+				threshold--;
 				mydbObject.put("customerId", custId);
 				mydbObject.put("_id", acct.get_id());
 				mydbObject.put("usageId", acct.getAcctId());
-				mydbObject.put("arr", acct.getArr());
-//				mydbObject.put("mrr", acct.getMrr());
-				mydbObject.put("csmName", acct.getCsmName());
-				mydbObject.put("salesLead", acct.getSalesLead());
-				mydbObject.put("endUserCount", acct.getEndUserCount());
-				mydbObject.put("location", acct.getLocation());
+//				mydbObject.put("arr", acct.getArr());
+				mydbObject.put("mrr", acct.getMrr());
+//				mydbObject.put("csmName", acct.getCsmName());
+//				mydbObject.put("salesLead", acct.getSalesLead());
+//				mydbObject.put("endUserCount", acct.getEndUserCount());
+//				mydbObject.put("location", acct.getLocation());
 				mydbObject.put("name", acct.getName());
-				mydbObject.put("region", acct.getRegion());
-				mydbObject.put("stage", acct.getStage());
-				mydbObject.put("tier", acct.getTier());		
-				mydbObject.put("supportLevel", acct.getSupportLevel());
+//				mydbObject.put("region", acct.getRegion());
+//				mydbObject.put("stage", acct.getStage());
+//				mydbObject.put("tier", acct.getTier());		
+//				mydbObject.put("supportLevel", acct.getSupportLevel());
 //				mydbObject.put("industry", acct.getIndustry());		
 				mydbObject.put("churn", acct.isChurn());	
 				if (acct == null || acct.getAcctId() == null) {
 					System.out.printf("no acct for data %s\n", line); 
 					continue;
 				}
+
+				// TODO:: general case
 				event = AcctDates.get(acct.getAcctId().toLowerCase());
 				if (event == null) {
 					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
 				}
 				if (event != null) {
-					mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
-					mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
+					mydbObject.put("firstEvent", usageMonthFormat.parse(event.getFirstDate()));
+					mydbObject.put("lastEvent", usageMonthFormat.parse(event.getLastDate()));
 				}
-				AcctDates dates = ChurnRenewalDates.get(acct.getAcctId());
-				if (dates == null) { 
-					dates = new AcctDates(null, null, null);
-					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-				}
-				mydbObject.put("contractDate", dates.getStartDate());	
-				mydbObject.put("renewalDate", dates.getRenewalDate());
-				mydbObject.put("churnDate", dates.getChurnDate());
+//				AcctDates dates = ChurnRenewalDates.get(acct.getAcctId());
+//				if (dates == null) { 
+//					dates = new AcctDates(null, null, null);
+//					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+//				}
+//				mydbObject.put("contractDate", dates.getStartDate());	
+//				mydbObject.put("renewalDate", dates.getRenewalDate());
+//				mydbObject.put("churnDate", dates.getChurnDate());
+				// TODO:: for Replicon only
+				mydbObject.put("contractDate", usageFullDateFormat.parse(acct.getContractedDT()));	
+				mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageFullDateFormat.parse(acct.getRenewalDT()));
+				mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
 				
 				String acctId = acct.getAcctId().toLowerCase();
 				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
@@ -776,6 +793,9 @@ public class InsertDocumentApp {
 					feeds = new LinkedList<DBObject>();
 				}
 			}
+			acctSets.clear();
+			acctSets = null;
+			
 			if (threshold > 0) {
 				table.insert(feeds);
 				feeds.clear();
@@ -785,101 +805,113 @@ public class InsertDocumentApp {
 			br.close();
 
 		} catch (UnknownHostException e) {
-			e.printStackTrace();
+			e.printStackTrace(System.out);
 		} catch (MongoException e) {
-			e.printStackTrace();
+			e.printStackTrace(System.out);
 		} catch (IOException e) {
-			e.printStackTrace();
+			e.printStackTrace(System.out);
 		}
 	}
 
-	public static void main(String[] args)  {
+	public static void main(String[] args) throws IOException  {
 		
-//		ObjectId objId = new ObjectId("5229f0663004e751ecdf841c");
+//		File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+//		BufferedReader br = new BufferedReader(new FileReader(sFile));
 //		
-//		System.out.println(objId);
+//		String line = null;
 //		
-//		for (int i = 0; i < 20; i++)
-//			System.out.println(new ObjectId());
-		
-//		InsertDocumentApp app = new InsertDocumentApp();
-//		app.setup();
-//		app.insertOpenVPN();
-//		app.tearDown();
-		
-		try {
-			// mongodb://admin:password@localhost:27017/db
-//			MongoClient.connect(addr);
-			
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB("bow-openvpn");
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);
-			}
-			
-			DBCollection collection = db.getCollection("account");
-			collection.drop();
-			collection = db.getCollection("account");
-
-			InsertDocumentApp app = new InsertDocumentApp();
-			app.setup();
-			app.insertOpenVPN();
-			app.tearDown();
-			
-//			// 2. BasicDBObjectBuilder example
-//			System.out.println("BasicDBObjectBuilder example...");
-//			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
-//					.add("database", "bow").add("table", "account");
-//
-//			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
-//					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
-//					.add("index", "vps_index1").add("active", "true");
-//
-//			documentBuilder.add("detail", documentBuilderDetail.get());
-//
-//			collection.insert(documentBuilder.get());
-//
-//			DBCursor cursorDocBuilder = collection.find();
-//			while (cursorDocBuilder.hasNext()) {
-//				System.out.println(cursorDocBuilder.next());
-//			}
-//
-//			collection.remove(new BasicDBObject());
-			
+//		while((line = br.readLine()) != null) {
+//			String[] splits = line.split("\t");
 //			
-//			// 3. Map example
-//			System.out.println("Map example...");
-//			Map<String, Object> documentMap = new HashMap<String, Object>();
-//			documentMap.put("database", "bow");
-//			documentMap.put("table", "hosting");
-//
-//			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
-//			documentMapDetail.put("records", "99");
-//			documentMapDetail.put("index", "vps_index1");
-//			documentMapDetail.put("active", "true");
-//
-//			documentMap.put("detail", documentMapDetail);
-//
-//			collection.insert(new BasicDBObject(documentMap));
-//
-//			DBCursor cursorDocMap = collection.find();
-//			while (cursorDocMap.hasNext()) {
-//				System.out.println(cursorDocMap.next());
+//			if ("521093".equals(splits[0])) {
+//				
+//				
+//				System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
 //			}
-//
-//			collection.remove(new BasicDBObject());
+//		}
+//		
+//		br.close();
 
-		} catch(Throwable ex) {
-			ex.printStackTrace(System.out);
-		}
+		
+		InsertDocumentApp app = new InsertDocumentApp();
+		app.setup();
+		app.insertHost();
+//		app.insertOpenVPN();
+		app.tearDown();
+		
+//		try {
+//			// mongodb://admin:password@localhost:27017/db
+////			MongoClient.connect(addr);
+//			
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB("bow-openvpn");
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
+//			
+//			DBCollection collection = db.getCollection("account");
+//			collection.drop();
+//			collection = db.getCollection("account");
+//
+//			InsertDocumentApp app = new InsertDocumentApp();
+//			app.setup();
+//			app.insertOpenVPN();
+//			app.tearDown();
+//			
+////			// 2. BasicDBObjectBuilder example
+////			System.out.println("BasicDBObjectBuilder example...");
+////			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
+////					.add("database", "bow").add("table", "account");
+////
+////			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
+////					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
+////					.add("index", "vps_index1").add("active", "true");
+////
+////			documentBuilder.add("detail", documentBuilderDetail.get());
+////
+////			collection.insert(documentBuilder.get());
+////
+////			DBCursor cursorDocBuilder = collection.find();
+////			while (cursorDocBuilder.hasNext()) {
+////				System.out.println(cursorDocBuilder.next());
+////			}
+////
+////			collection.remove(new BasicDBObject());
+//			
+////			
+////			// 3. Map example
+////			System.out.println("Map example...");
+////			Map<String, Object> documentMap = new HashMap<String, Object>();
+////			documentMap.put("database", "bow");
+////			documentMap.put("table", "hosting");
+////
+////			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
+////			documentMapDetail.put("records", "99");
+////			documentMapDetail.put("index", "vps_index1");
+////			documentMapDetail.put("active", "true");
+////
+////			documentMap.put("detail", documentMapDetail);
+////
+////			collection.insert(new BasicDBObject(documentMap));
+////
+////			DBCursor cursorDocMap = collection.find();
+////			while (cursorDocMap.hasNext()) {
+////				System.out.println(cursorDocMap.next());
+////			}
+////
+////			collection.remove(new BasicDBObject());
+//
+//		} catch(Throwable ex) {
+//			ex.printStackTrace(System.out);
+//		}
 	}
 		
 	static void loadEvents() throws IOException {
 
-		String acctDates = "/Users/borongzhou/test/fake/product/acctFirstLastDate.tsv";
-		String userDates = "/Users/borongzhou/test/fake/product/userFirstLastDate.tsv";
+		String acctDates = "/Users/borongzhou/test/replicon/product/acctFirstLastDate.tsv";
+		String userDates = "/Users/borongzhou/test/replicon/product/userFirstLastDate.tsv";
 		String churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
 		
 		File sFile = new File(acctDates);
@@ -911,23 +943,23 @@ public class InsertDocumentApp {
 		br.close();
 		
 		// acctId, startDate, renewalDate, churnDate
-		sFile = new File(churnDates);
-		br = new BufferedReader(new FileReader(sFile));
-		
-		line = null;
-		splits = null; 
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			if (splits.length != 4) {
-				System.out.printf("invalid record: %s\n", line);
-				continue;
-			}
-			
-			AcctDates event = new AcctDates(splits[1], "-9999".equals(splits[2])? null : splits[2], "-9999".equals(splits[3])? null : splits[3]);
-			ChurnRenewalDates.put(splits[0], event);
-		}
-		
-		br.close();
+//		sFile = new File(churnDates);
+//		br = new BufferedReader(new FileReader(sFile));
+//		
+//		line = null;
+//		splits = null; 
+//		while ((line = br.readLine()) != null) {
+//			splits = line.split("\t");
+//			if (splits.length != 4) {
+//				System.out.printf("invalid record: %s\n", line);
+//				continue;
+//			}
+//			
+//			AcctDates event = new AcctDates(splits[1], "-9999".equals(splits[2])? null : splits[2], "-9999".equals(splits[3])? null : splits[3]);
+//			ChurnRenewalDates.put(splits[0], event);
+//		}
+//		
+//		br.close();
 	}
 
 	void insertBNAenduserObject(String srcFile) throws Exception {
@@ -951,15 +983,35 @@ public class InsertDocumentApp {
 			List<DBObject> feeds = new LinkedList<DBObject>();
 			int threshold = 1000;
 			
-			File sFile = new File(srcFile);
+			File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
 			
 			String line = null;
+			
+//			while((line = br.readLine()) != null) {
+//				String[] splits = line.split("\t");
+//				
+//				if ("521093".equals(splits[0])) {	
+//					System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
+//				}
+//			}
+//			
+//			br.close();
+//			
+//			sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+//			br = new BufferedReader(new FileReader(sFile));
+			
+			line = null;
 			int total = 0;
 			int invalid = 0;
 			FirstLastEvent event = null;
-			while (threshold-- > 0 && (line = br.readLine()) != null) {
-
+			while ((line = br.readLine()) != null) {
+				
+				String[] splits = line.split("\t");
+				
+				if ("521093".equals(splits[0])) {
+					System.out.printf("inserting data for account %s\n", line);
+				}
 				BasicDBObject mydbObject = new BasicDBObject();
 				BNAendUser ensuser = new BNAendUser(line);
 
@@ -972,8 +1024,8 @@ public class InsertDocumentApp {
 				mydbObject.put("_id", ensuser.get_id());
 				mydbObject.put("accountId", ensuser.getAccountId());
 				mydbObject.put("name", ensuser.getUserId());	
-				mydbObject.put("firstEvent", usageDateFormat.parse(ensuser.getFirstDT()));
-				mydbObject.put("lastEvent", usageDateFormat.parse(ensuser.getLastDT()));
+				mydbObject.put("firstEvent", ensuser.getFirstDT() == null? null : usageMonthFormat.parse(ensuser.getFirstDT()));
+				mydbObject.put("lastEvent", ensuser.getLastDT() == null? null : usageMonthFormat.parse(ensuser.getLastDT()));
 				
 //				event = UserDates.get(ensuser.getUserId());
 //				if (event == null) {
@@ -988,6 +1040,7 @@ public class InsertDocumentApp {
 				
 				feeds.add(mydbObject);
 				mydbObject = null;
+				threshold--;
 				
 				if (threshold == 0) {
 					table.insert(feeds);
@@ -1095,6 +1148,9 @@ public class InsertDocumentApp {
 
 			String acctId = splits[0].toLowerCase().trim();
 			this.acctId = acctId;
+			if ("521093".equals(acctId))
+					System.out.printf("inserting enduser %s\n", data);
+			
 			if (AcctMappping.get(acctId) == null) {
 				System.out.println("no objectId for " + acctId);
 			}
@@ -1102,9 +1158,10 @@ public class InsertDocumentApp {
 				this.accountId = new ObjectId(AcctMappping.get(acctId));
 			
 			FirstLastEvent dates = UserDates.get(splits[0] + "\t" + splits[1]);
-			
-			this.firstDT = dates.firstDate;
-			this.lastDT = dates.lastDate;
+			if (dates == null)
+				System.out.printf("no dates for user %s\n", splits[0] + "\t" + splits[1]);
+			this.firstDT = (dates == null)? null : dates.firstDate; // null point 100130	26-100130
+			this.lastDT = (dates == null)? null : dates.lastDate;
 		}
 
 		public Object get_id() {
@@ -1142,39 +1199,63 @@ public class InsertDocumentApp {
 		private int endUserCount = 0;
 		private long arr = 0L;
 		private long mrr = 0L;
+		private String m2m = "Y";
 		private String contractedDT = null;
 		private String renewalDT = null;
+		private String churnDT = null;
 		private String stage = null;
 		private String gORl = null;
 		private String industry = null;
 		private boolean churn = false;
 		
-		public BNAacct(String data) {
+		public BNAacct(String data) throws ParseException, Exception {
 			if (data == null || data.isEmpty())
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != BNA_ACCT.values().length)
+
+			if (splits.length != RELICON_ACCT.values().length)
 				return;
 			
-			this.acctId = splits[BNA_ACCT.acctId.ordinal()].trim();
-			this.acctName = splits[BNA_ACCT.acctName.ordinal()].trim();
-			this.csmName = splits[BNA_ACCT.csmName.ordinal()].trim();
-			this.salesLead = splits[BNA_ACCT.salesLead.ordinal()];
-			this.tier = splits[BNA_ACCT.tier.ordinal()];
-			this.location = splits[BNA_ACCT.state.ordinal()];
-			this.region = splits[BNA_ACCT.region.ordinal()];
-			this.supportLevel = splits[BNA_ACCT.supportLevel.ordinal()];
-			this.endUserCount = Integer.parseInt(splits[BNA_ACCT.numOfEmp.ordinal()]);
-			double arrDouble = Double.parseDouble(splits[BNA_ACCT.arr.ordinal()]);
-			this.arr = (long) arrDouble*100;
-//			this.mrr = splits[HOST_ACCT_V3.mrr.ordinal()];
-			this.stage = splits[BNA_ACCT.stage.ordinal()];
-			this.contractedDT = splits[BNA_ACCT.contractedDT.ordinal()];
-			this.renewalDT = splits[BNA_ACCT.renewalDT.ordinal()];
-//			this.gORl = splits[BNA_ACCT.gORl.ordinal()];
-//			this.industry = splits[BNA_ACCT.industry.ordinal()];
-			this.churn = Boolean.parseBoolean(splits[BNA_ACCT.churn.ordinal()]);
+			this.acctId = splits[RELICON_ACCT.acctId.ordinal()].trim();
+			this.acctName = splits[RELICON_ACCT.acctName.ordinal()].trim();
+			double mrrDouble = Double.parseDouble(splits[RELICON_ACCT.mrr.ordinal()]);
+			this.mrr = (long) (mrrDouble*100);
+			this.contractedDT = splits[RELICON_ACCT.contractedDT.ordinal()];
+			this.renewalDT = splits[RELICON_ACCT.renewalDT.ordinal()]; 
+			this.m2m = splits[RELICON_ACCT.m2m.ordinal()];
+			
+			// TODO:: adjust the churn date here if Y + 30; or + 365 days
+			this.churnDT = splits[RELICON_ACCT.churnDT.ordinal()]; 
+			
+//			if ("-9999".equals(churnDT) == false) {
+//				DateWrapper dw = new DateWrapper(usageFullDateFormat.parse(churnDT));
+//				if ("Y".equals(m2m))
+//					churnDT = dw.getNdaysAfterDateStr(30);
+//				else if ("N".equals(m2m))
+//					churnDT = dw.getNdaysAfterDateStr(365);
+//			}
+			this.churn = Boolean.parseBoolean(splits[RELICON_ACCT.churn.ordinal()]);
+			
+// BNA fake
+//			if (splits.length != BNA_ACCT.values().length)
+//				return;
+//			
+//			this.acctId = splits[BNA_ACCT.acctId.ordinal()].trim();
+//			this.acctName = splits[BNA_ACCT.acctName.ordinal()].trim();
+//			this.csmName = splits[BNA_ACCT.csmName.ordinal()].trim();
+//			this.salesLead = splits[BNA_ACCT.salesLead.ordinal()];
+//			this.tier = splits[BNA_ACCT.tier.ordinal()];
+//			this.location = splits[BNA_ACCT.state.ordinal()];
+//			this.region = splits[BNA_ACCT.region.ordinal()];
+//			this.supportLevel = splits[BNA_ACCT.supportLevel.ordinal()];
+//			this.endUserCount = Integer.parseInt(splits[BNA_ACCT.numOfEmp.ordinal()]);
+//			double arrDouble = Double.parseDouble(splits[BNA_ACCT.arr.ordinal()]);
+//			this.arr = (long) arrDouble*100;
+//			this.stage = splits[BNA_ACCT.stage.ordinal()];
+//			this.contractedDT = splits[BNA_ACCT.contractedDT.ordinal()];
+//			this.renewalDT = splits[BNA_ACCT.renewalDT.ordinal()];
+//			this.churn = Boolean.parseBoolean(splits[BNA_ACCT.churn.ordinal()]);
 			
 			this._id = new ObjectId();
 		}
@@ -1235,6 +1316,12 @@ public class InsertDocumentApp {
 		}
 		public String getRenewalDT() {
 			return renewalDT;
+		}
+		public String getChurnDT() {
+			return churnDT;
+		}
+		public String getgORl() {
+			return gORl;
 		}
 
 		@Override
@@ -1315,6 +1402,18 @@ public class InsertDocumentApp {
 		renewalDT,
 		firstDT,
 		lastDT,
+		churn
+	}
+	
+	static enum RELICON_ACCT {
+		acctId,
+		acctName,
+		mrr,
+		m2m,
+		eventdt,
+		contractedDT,
+		churnDT,
+		renewalDT,
 		churn
 	}
 	
