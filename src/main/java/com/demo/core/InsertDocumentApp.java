@@ -22,12 +22,15 @@ import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 
+import com.bluenose.powder.util.CommonTokens;
+import com.bluenose.powder.util.StringUtil;
 import com.google.gson.Gson;
 import com.mongodb.BasicDBObject;
 import com.mongodb.DB;
 import com.mongodb.DBCollection;
 import com.mongodb.DBCursor;
 import com.mongodb.DBObject;
+import com.mongodb.Mongo;
 import com.mongodb.MongoClient;
 import com.mongodb.MongoException;
  
@@ -44,20 +47,26 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.7"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final int port = 37017; //37017; // 27017; //  
-	private static final String dbName = "bow-replicon"; // "bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
+	private static final String ipAddr = "localhost"; //"10.0.9.7"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final int port = 27017; //37017; // 27017; //  
+	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
+	private static final String dbName = "bow-fa8e12345678900000000001"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
 	private static final String username = "bnaadmin";
 	private static final String password = "bluenose!";
 			
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Opportunity>> acctOppties = null;
+	private Map<String, LinkedHashSet<Ticket>> acctTickets = null;
+	private Map<String, LinkedHashSet<Finance>> acctFinances = null;
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
 	private static DecimalFormat dFormat = new DecimalFormat("################.##");
 	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyyMMdd"); //"yyyy-MM-dd hh:mm:ss.SSS");
 	private static SimpleDateFormat usageMonthFormat = new SimpleDateFormat("yyyyMM"); //"yyyy-MM-dd hh:mm:ss.SSS");
 	private static SimpleDateFormat usageFullDateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
+	private static SimpleDateFormat usageHourFormat = new SimpleDateFormat("yyyyMMdd hh");
+
+	private static SimpleDateFormat ticketDateFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss");
 
 	private static final Gson GSON = new Gson();
 
@@ -73,13 +82,38 @@ public class InsertDocumentApp {
 		}
 	}
 
+	public void insertBrightidea()  {
+		
+		try {
+			loadAcctEvents("/Users/borongzhou/test/brightidea/product/acctFirstLastDate.tsv");
+			insertGeneralAcctHealthScore("/Users/borongzhou/test/brightidea/product/brightScoreExt.tsv", CUSTOMER_TYPE.BRIGHTIDEA.ordinal());
+			insertTicketObject("/Users/borongzhou/test/brightidea/product/ticketObj.tsv");
+			insertGeneralAccountObject("/Users/borongzhou/test/brightidea/product/acctsFromAcct.tsv", CUSTOMER_TYPE.BRIGHTIDEA.ordinal());
+			
+		} catch(Exception ex) {
+			ex.printStackTrace(System.out);
+		}
+	}
+
+	public void insertCloudPassage()  {
+		
+		try {
+			loadAcctEvents("/Users/borongzhou/test/cloudPassage/product/acctFirstLastDate.tsv");
+			insertGeneralAcctHealthScore("/Users/borongzhou/test/cloudPassage/product/cloudScoreExt.tsv", CUSTOMER_TYPE.CLOUDPASSAGE.ordinal());
+			insertGeneralAccountObject("/Users/borongzhou/test/cloudPassage/product/acctsFromAcct.tsv", CUSTOMER_TYPE.CLOUDPASSAGE.ordinal());
+			
+		} catch(Exception ex) {
+			ex.printStackTrace(System.out);
+		}
+	}
 	
 //	@Test
-	public void insertHost()  {
+	public void insertReplicon()  {
 		
 		try {
 			loadEvents();
-			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/acctHealthScoreExt.tsv");
+			// TODO:: repScoreExt_v1.tsv
+			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
 //			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
 			insertBNAaccountObject("/Users/borongzhou/test/replicon/product/acctsFromAcct.tsv", "524c9ffbf7864895bdd8ee6d"); //"524c9ffbf7864895bdd8ee69");
 			acctsHScores.clear();
@@ -104,8 +138,10 @@ public class InsertDocumentApp {
 		AcctMappping = new HashMap<String, String>();
 		AcctScoring = new HashMap<String, Double>();
 		acctsHScores = new HashMap<String, LinkedHashSet<Health>>();
+		acctFinances = new HashMap<String, LinkedHashSet<Finance>>();
 		usersHScores = new HashMap<String, LinkedHashSet<Health>>();
 		acctOppties = new HashMap<String, LinkedHashSet<Opportunity>>();
+		acctTickets  = new HashMap<String, LinkedHashSet<Ticket>>();
 		ChurnRenewalDates = new HashMap<String, AcctDates>();
 	}
 	
@@ -129,6 +165,11 @@ public class InsertDocumentApp {
 			acctsHScores = null;
 		}
 
+		if (acctFinances != null) {
+			acctFinances.clear();
+			acctFinances = null;
+		}
+
 		if (usersHScores != null) {
 			usersHScores.clear();
 			usersHScores = null;
@@ -138,12 +179,71 @@ public class InsertDocumentApp {
 			acctOppties.clear();
 			acctOppties = null;
 		}
+
+		if (acctTickets != null) {
+			acctTickets.clear();
+			acctTickets = null;
+		}
 		
 		ChurnRenewalDates.clear();
 		ChurnRenewalDates = null;
 		
 		sFormat = null;
 		usageDateFormat = null;
+	}
+
+	void insertGeneralAcctHealthScore(String srcFile, int type) throws IOException, ParseException {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = null;
+		String[] splits = null;
+
+		LinkedHashSet<Health> list = null;
+		Health score = null;
+		String acctId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
+		while ((line = br.readLine()) != null) {
+			
+			if (line.contains("mScore"))
+				continue;
+			totalRecords++;
+			
+			splits = line.split("\t");
+			acctId = splits[3].toLowerCase().trim();
+			
+			list = acctsHScores.get(acctId);
+			if (list == null) {
+				list = new LinkedHashSet<Health>();
+				acctsHScores.put(acctId, list);
+			}
+			score = new Health();
+			
+			if (type == CUSTOMER_TYPE.CLOUDPASSAGE.ordinal()) {
+				int myScore = (int)Math.round(Double.parseDouble(splits[0]));
+				score.setScore(myScore);
+				score.setCreated(usageDateFormat.parse(splits[2]));
+			}
+			else if (type == CUSTOMER_TYPE.BRIGHTIDEA.ordinal()) {
+				int myScore = (int)Math.round(Double.parseDouble(splits[0]));
+				score.setScore(myScore);
+				score.setCreated(usageDateFormat.parse(splits[2] + "01"));
+			}
+			
+			score.put("_id", score._id);
+			score.put("created", score.created);
+			score.put("score", score.score);
+			score.put("scoreType", score.scoreType);
+			
+			list.add(score);
+//			System.out.println(score);
+		}
+
+		br.close();
+		
+		System.out.printf("invalid scores %d\ttotal scores %d\n", invalidRecords, totalRecords);
 	}
 
 	
@@ -215,7 +315,9 @@ public class InsertDocumentApp {
 			totalRecords++;
 			
 			splits = line.split("\t");
-			acctId = splits[1].toLowerCase().trim();
+			
+			// TODO:: last one
+			acctId = splits[3].toLowerCase().trim();
 			
 			list = acctsHScores.get(acctId);
 			if (list == null) {
@@ -223,9 +325,33 @@ public class InsertDocumentApp {
 				acctsHScores.put(acctId, list);
 			}
 			score = new Health();
-			int myScore = Integer.parseInt(splits[0]);
-			score.setScore((int)myScore);
-			score.setCreated(sFormat.parse(splits[3] + "01"));
+			int myScore = (int)Math.round(Double.parseDouble(splits[0]));
+			score.setScore(myScore);
+			score.setCreated(sFormat.parse(splits[2] + "01"));
+			
+//			acctId = splits[1].toLowerCase().trim();
+//			
+//			list = acctsHScores.get(acctId);
+//			if (list == null) {
+//				list = new LinkedHashSet<Health>();
+//				acctsHScores.put(acctId, list);
+//			}
+//			score = new Health();
+//			int myScore = Integer.parseInt(splits[2]);
+//			score.setScore(myScore);
+//			score.setCreated(sFormat.parse(splits[0] + "01"));
+			
+//			acctId = splits[2].toLowerCase().trim();
+//			
+//			list = acctsHScores.get(acctId);
+//			if (list == null) {
+//				list = new LinkedHashSet<Health>();
+//				acctsHScores.put(acctId, list);
+//			}
+//			score = new Health();
+//			int myScore = (int)Math.round(Double.parseDouble(splits[0]));
+//			score.setScore(myScore);
+//			score.setCreated(sFormat.parse("20130901"));
 			
 			score.put("_id", score._id);
 			score.put("created", score.created);
@@ -305,26 +431,26 @@ public class InsertDocumentApp {
 	public void retrieve() {
 
 		try {
-//			Mongo mongo = new Mongo(ipAddr, port);
-//			DB db = mongo.getDB(dbName);
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
 			
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);	
-			}
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);	
+//			}
 			
-			DBCollection user = db.getCollection("endUser");
+			DBCollection account = db.getCollection("account");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
 //			whereQuery.put("accountId", new ObjectId("52581e71f786f6bb1c4500d5")); 
 //			whereQuery.put("name", "18-101512");
-			DBCursor cursor = user.find(whereQuery);
+			DBCursor cursor = account.find(whereQuery);
 
-			System.out.println(user.count());
+			System.out.println(account.count());
 			
 			int count = 10;
 			while (count-- > 0 && cursor.hasNext()) {
@@ -332,18 +458,18 @@ public class InsertDocumentApp {
 			}
 			cursor.close();
 			
-			DBCollection account = db.getCollection("account");
+			DBCollection user = db.getCollection("endUser");
 			whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "mirion technologies inc");
 //			whereQuery.put("_id", new ObjectId("5255f58af786e6b83896681a"));
 //			whereQuery.put("usageId", "100130"); 
-			DBCursor cursorDoc = account.find(whereQuery);
+			DBCursor cursorDoc = user.find(whereQuery);
 			count = 10;
 			while (count--> 0 && cursorDoc.hasNext()) {
 				System.out.println(cursorDoc.next());
 			}
 
-			System.out.println(account.count());
+			System.out.println(user.count());
 			cursorDoc.close();
 			
 		} catch (UnknownHostException e) {
@@ -353,6 +479,164 @@ public class InsertDocumentApp {
 		}
 	}
 
+	public static class Ticket extends BasicDBObject {
+		private ObjectId _id = new ObjectId();
+		private String bnaId = null;
+
+		private ObjectId accountId = null;
+		private String acctId = null;
+		private String externalId = null;
+		private String type = null;
+		private String subject = null;
+		private String description = null;
+		private String priority = null;
+		private String status = null;
+		private String submitter = null;
+		private String recipient = null;
+		private String assignee = null;
+		private Date dueDate = null;
+		private Date created = null;
+		private Date updated = null;
+		private String creator = null;  //requester
+
+		private boolean closed = false;
+		private Date closedDate = null;
+		private boolean resolved = false;
+		private Date resolvedDate = null;
+		private String 	product = null;
+		private String component = null;
+		private String reason = null;
+		private String channel = null;
+		private boolean deleted = false;
+
+		public void set(String data, int type) throws ParseException {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String str = null;
+			String[] splits = data.split("\t");
+			if (type == CUSTOMER_TYPE.BRIGHTIDEA.ordinal()) {
+				
+				if (splits.length != BRIGHT_TICKET.values().length)
+						return;
+				
+				this.bnaId = splits[BRIGHT_TICKET.niceId.ordinal()];
+				this.acctId = splits[BRIGHT_TICKET.acctId.ordinal()];
+				this.assignee = splits[BRIGHT_TICKET.assignedId.ordinal()];
+				this.status = splits[BRIGHT_TICKET.statusId.ordinal()];
+				this.subject = splits[BRIGHT_TICKET.subject.ordinal()];
+				this.submitter = splits[BRIGHT_TICKET.submitterId.ordinal()];
+				this.creator = splits[BRIGHT_TICKET.requesterId.ordinal()];
+				str = splits[BRIGHT_TICKET.createdDT.ordinal()];
+				if (StringUtil.isNullOrEmpty(str) == false)
+					this.created = ticketDateFormat.parse(str);
+				str = splits[BRIGHT_TICKET.updatedDT.ordinal()];
+				if (StringUtil.isNullOrEmpty(str) == false)
+					this.updated  = ticketDateFormat.parse(str);
+				str = splits[BRIGHT_TICKET.solvedDT.ordinal()];
+				if (StringUtil.isNullOrEmpty(str) == false)
+					this.resolvedDate = ticketDateFormat.parse(str);
+				str = splits[BRIGHT_TICKET.dueDT.ordinal()];
+				if (StringUtil.isNullOrEmpty(str) == false)
+					this.dueDate = ticketDateFormat.parse(str);
+				this.resolved = Boolean.parseBoolean(splits[BRIGHT_TICKET.solved.ordinal()]);
+				this.channel = splits[BRIGHT_TICKET.channelid.ordinal()];
+				this.priority = splits[BRIGHT_TICKET.priorityId.ordinal()];
+				this.description = splits[BRIGHT_TICKET.currentTag.ordinal()]; // original desc is too much
+			}
+
+		}
+		
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getBnaId() {
+			return bnaId;
+		}
+		public void setAccountId(ObjectId accountId) {
+			this.accountId = accountId;
+		}
+		public ObjectId getAccountId() {
+			return accountId;
+		}
+		public String getAcctId() {
+			return acctId;
+		}
+		public String getExternalId() {
+			return externalId;
+		}
+		public String getType() {
+			return type;
+		}
+		public String getSubject() {
+			return subject;
+		}
+		public String getDescription() {
+			return description;
+		}
+		public String getPriority() {
+			return priority;
+		}
+		public String getStatus() {
+			return status;
+		}
+		public String getRecipient() {
+			return recipient;
+		}
+		public String getSubmitter() {
+			return submitter;
+		}
+		public String getAssignee() {
+			return assignee;
+		}
+		public Date getDueDate() {
+			return dueDate;
+		}
+		public Date getCreated() {
+			return created;
+		}
+		public Date getUpdated() {
+			return updated;
+		}
+		public String getCreator() {
+			return creator;
+		}
+		public boolean isClosed() {
+			return closed;
+		}
+		public Date getClosedDate() {
+			return closedDate;
+		}
+		public boolean isResolved() {
+			return resolved;
+		}
+		public Date getResolvedDate() {
+			return resolvedDate;
+		}
+		public String getProduct() {
+			return product;
+		}
+		public String getComponent() {
+			return component;
+		}
+		public String getReason() {
+			return reason;
+		}
+		public String getChannel() {
+			return channel;
+		}
+		public boolean isDeleted() {
+			return deleted;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+
+	}
 
 	public static class Opportunity extends BasicDBObject {
 		
@@ -511,6 +795,69 @@ public class InsertDocumentApp {
 		}
 	}
 	
+
+	/**
+	 * by default the value is in cents, and $
+	 * @author borongzhou
+	 *
+	 */
+	public static class Finance extends BasicDBObject {
+		
+		public ObjectId _id = new ObjectId();
+		public String name = "MRR";
+		public String currency = "USD";
+		public String unit = "cent";
+		public long value = 0L;
+		public Date created = null;
+		public String description = null;
+		
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getName() {
+			return name;
+		}
+		public void setName(String name) {
+			this.name = name;
+		}
+		public String getCurrency() {
+			return currency;
+		}
+		public void setCurrency(String currency) {
+			this.currency = currency;
+		}
+		public String getUnit() {
+			return unit;
+		}
+		public void setUnit(String unit) {
+			this.unit = unit;
+		}
+		public long getValue() {
+			return value;
+		}
+		public void setValue(long value) {
+			this.value = value;
+		}
+		public Date getCreated() {
+			return created;
+		}
+		public void setCreated(Date created) {
+			this.created = created;
+		}
+		public String getDescription() {
+			return description;
+		}
+		public void setDescription(String description) {
+			this.description = description;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+		
+	}
 	
 	public static class Health extends BasicDBObject {
 		
@@ -546,6 +893,59 @@ public class InsertDocumentApp {
 			
 			return GSON.toJson(this);
 		}
+	}
+	
+	void insertTicketObject(String srcFile) throws Exception {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = null;
+
+
+		LinkedHashSet<Ticket> list = null;
+		String acctId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
+		while ((line = br.readLine()) != null) {
+			
+			if (line.contains("acctId"))
+				continue;
+
+			Ticket ticket = new Ticket();
+			ticket.set(line, 3);
+
+			acctId = ticket.getAcctId().toLowerCase();
+			list = acctTickets.get(acctId);
+			if (list == null) {
+				list = new LinkedHashSet<Ticket>();
+				acctTickets.put(acctId, list);
+			}
+			
+			ticket.put("_id", ticket._id);
+			ticket.put("bnaId", ticket.bnaId);
+			ticket.put("assignee", ticket.getAssignee());
+			ticket.put("status", ticket.getStatus());
+			ticket.put("subject", ticket.getSubject());
+			ticket.put("submitter", ticket.getSubmitter());
+			ticket.put("creator", ticket.getCreator());
+			ticket.put("created", ticket.getCreated());
+			ticket.put("updated", ticket.getUpdated());
+			ticket.put("resolvedDate", ticket.getResolvedDate());
+			ticket.put("dueDate", ticket.getDueDate());
+			ticket.put("resolved", ticket.isResolved());
+			ticket.put("channel", ticket.getChannel());
+			ticket.put("priority", ticket.getPriority());
+			ticket.put("description", ticket.getDescription());
+			
+			list.add(ticket);
+			
+			totalRecords++;
+		}
+
+		br.close();
+		
+		System.out.printf("account tickets %d with invalid scores %d\ttotal records %d\n", acctTickets.size(), invalidRecords, totalRecords);
 	}
 	
 	void insertOpportunityObject(String srcFile) throws Exception {
@@ -611,6 +1011,154 @@ public class InsertDocumentApp {
 		
 		System.out.printf("account opportunities %d with invalid scores %d\ttotal scores %d\n", acctOppties.size(), invalidRecords, totalRecords);
 	}
+	
+	void insertGeneralAccountObject(String srcFile, int custType) throws Exception {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+
+			// TODO:: no enduser info
+			DBCollection table = db.getCollection("endUser");
+			table.drop();
+			table = db.getCollection("endUser");
+			
+			table = db.getCollection("account");
+			table.drop();
+			table = db.getCollection("account");
+			
+			List<DBObject> feeds = new LinkedList<DBObject>();
+			int threshold = 1000;
+
+			ObjectId custId = null;
+			if (custType == CUSTOMER_TYPE.BRIGHTIDEA.ordinal())
+				custId = new ObjectId("524c9ffbf7864895bdd8ee72");
+			else if (custType == CUSTOMER_TYPE.CLOUDPASSAGE.ordinal())	
+				custId = new ObjectId("524c9ffbf7864895bdd8ee77");
+			
+			File sFile = new File(srcFile);
+			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			String line = null;		
+			FirstLastEvent event = null;
+			
+			Set<String> acctSets = new HashSet<String>();
+			while (threshold > 0 && (line = br.readLine()) != null) {
+								
+				if (line.contains("acctId"))
+					continue;
+				
+				BasicDBObject mydbObject = new BasicDBObject();
+				BNAacct acct = new BNAacct(line, custType);
+				if (acctSets.contains(acct.getAcctId()))
+					continue;
+				else
+					acctSets.add(acct.getAcctId());
+				
+				threshold--;
+				mydbObject.put("customerId", custId);
+				mydbObject.put("_id", acct.get_id());
+				mydbObject.put("usageId", acct.getAcctId());
+				if (acct.getArr() != null)
+					mydbObject.put("arr", acct.getArr());
+				if (acct.getMrr() != null)
+					mydbObject.put("mrr", acct.getMrr());
+				if (acct.getCsmName() != null)
+					mydbObject.put("csmName", acct.getCsmName());
+				if (acct.getSalesLead() != null)
+					mydbObject.put("salesLead", acct.getSalesLead());
+				if (acct.getEndUserCount() != null)
+					mydbObject.put("endUserCount", acct.getEndUserCount());
+				if (acct.getLocation() != null)
+					mydbObject.put("location", acct.getLocation());
+				if (acct.getName() != null)
+					mydbObject.put("name", acct.getName());
+//				mydbObject.put("region", acct.getRegion());
+//				mydbObject.put("stage", acct.getStage());
+//				mydbObject.put("tier", acct.getTier());		
+//				mydbObject.put("supportLevel", acct.getSupportLevel());
+				if (acct.getIndustry() != null)
+					mydbObject.put("industry", acct.getIndustry());	
+				if (acct.getSegment() != null)
+					mydbObject.put("segment", acct.getSegment());	
+//				mydbObject.put("sicCode", acct.getSicCode());
+				if (acct.getContractedDT() != null)
+					mydbObject.put("contractDate", usageDateFormat.parse(acct.getContractedDT()));
+				if (acct.getRenewalDT() != null)
+					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageFullDateFormat.parse(acct.getRenewalDT()));
+				if (acct.getChurnDT() != null)
+					mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
+				if (acct.isChurn() != null)
+					mydbObject.put("churn", acct.isChurn());	
+				
+				if (acct == null || acct.getAcctId() == null) {
+					System.out.printf("no acct for data %s\n", line); 
+					continue;
+				}
+				
+				// TODO:: general case
+				event = AcctDates.get(acct.getAcctId().toLowerCase());
+				if (event == null) {
+					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+				}
+				if (event != null) {
+					String dateStr = event.getFirstDate();
+					mydbObject.put("firstEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
+					dateStr = event.getLastDate();
+					mydbObject.put("lastEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
+				}
+				
+				String acctId = acct.getAcctId().toLowerCase();
+				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
+				if (hscores == null || hscores.isEmpty()) {
+					System.out.printf("no hscore for account %s\n", acctId);
+				}
+				else
+					mydbObject.put("healthScores", hscores);
+				LinkedHashSet<Ticket> tickets = acctTickets.get(acctId);
+				if (tickets == null || tickets.isEmpty())
+					System.out.printf("no tickets for account %s\n", acctId);
+				else
+					mydbObject.put("tickets", tickets);
+				
+//				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
+				
+				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
+								
+				feeds.add(mydbObject);
+				mydbObject = null;
+				
+				if (threshold == 0) {
+					table.insert(feeds);
+					threshold = 1000;
+					feeds.clear();
+					feeds = new LinkedList<DBObject>();
+				}
+			}
+			acctSets.clear();
+			acctSets = null;
+			
+			if (threshold > 0) {
+				table.insert(feeds);
+				feeds.clear();
+				feeds = null;
+			}
+			
+			br.close();
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace(System.out);
+		} catch (MongoException e) {
+			e.printStackTrace(System.out);
+		} catch (IOException e) {
+			e.printStackTrace(System.out);
+		}
+	}
+
 	
 	void insertOpenAccountObject(String srcFile) throws Exception {
 
@@ -719,11 +1267,40 @@ public class InsertDocumentApp {
 			
 			String line = null;		
 			FirstLastEvent event = null;
+			LinkedHashSet<Finance> mrrList = null;
+			Finance mrrObj = null;
+			
+			while (threshold > 0 && (line = br.readLine()) != null) {
+			
+				mrrObj = new Finance();
+				String[] splits = line.split(CommonTokens.TAB_DELIMITER);
+				mrrObj.setCreated(usageFullDateFormat.parse(splits[RELICON_ACCT.eventdt.ordinal()]));
+				mrrObj.setValue((long)(Double.parseDouble(splits[RELICON_ACCT.mrr.ordinal()]) * 100));
+
+				mrrObj.put("_id", mrrObj._id);
+				mrrObj.put("created", mrrObj.created);
+				mrrObj.put("value", mrrObj.value);
+				mrrObj.put("currency", mrrObj.currency);
+				mrrObj.put("unit", mrrObj.unit);
+				
+				mrrList = acctFinances.get(splits[RELICON_ACCT.acctId.ordinal()]);
+				if (mrrList == null) {
+					mrrList = new LinkedHashSet<Finance>();
+					acctFinances.put(splits[RELICON_ACCT.acctId.ordinal()].trim().toLowerCase(), mrrList);
+				}
+				
+				mrrList.add(mrrObj);
+			}
+			
+			br.close();
+			
+			br = new BufferedReader(new FileReader(sFile));
+			
 			Set<String> acctSets = new HashSet<String>();
 			while (threshold > 0 && (line = br.readLine()) != null) {
-
+								
 				BasicDBObject mydbObject = new BasicDBObject();
-				BNAacct acct = new BNAacct(line);
+				BNAacct acct = new BNAacct(line, 2);
 				if (acctSets.contains(acct.getAcctId()))
 					continue;
 				else
@@ -780,7 +1357,9 @@ public class InsertDocumentApp {
 				}
 				mydbObject.put("healthScores", hscores);
 //				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
-
+				mrrList = acctFinances.get(acctId);
+				mydbObject.put("mrrList", mrrList);
+				
 				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
 								
 				feeds.add(mydbObject);
@@ -832,11 +1411,12 @@ public class InsertDocumentApp {
 //		
 //		br.close();
 
-		
+//		System.out.println(_idGenerator);
 		InsertDocumentApp app = new InsertDocumentApp();
 		app.setup();
-		app.insertHost();
-//		app.insertOpenVPN();
+//		app.insertBrightidea();
+		app.insertCloudPassage();
+//		app.insertReplicon();
 		app.tearDown();
 		
 //		try {
@@ -908,6 +1488,26 @@ public class InsertDocumentApp {
 //		}
 	}
 		
+	static void loadAcctEvents(String acctDates) throws IOException {
+
+		File sFile = new File(acctDates);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+		
+		String line = null;
+		String[] splits = null; 
+		
+		while ((line = br.readLine()) != null) {
+			if (line.contains("acctId"))
+				continue;
+			
+			splits = line.split("\t");
+			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+			AcctDates.put(splits[2].toLowerCase(), event);
+		}
+		
+		br.close();
+	}
+	
 	static void loadEvents() throws IOException {
 
 		String acctDates = "/Users/borongzhou/test/replicon/product/acctFirstLastDate.tsv";
@@ -1069,7 +1669,7 @@ public class InsertDocumentApp {
 	}
 	
 	String toJson(String line) throws Exception {
-		return new BNAacct(line).toString();
+		return new BNAacct(line, 0).toString();
 	}
 	
 	String toJson2(String line) throws Exception {
@@ -1187,7 +1787,7 @@ public class InsertDocumentApp {
 	}
 		  
 	public static class BNAacct {
-		private Object _id = null;
+		private ObjectId _id = null;
 		private String acctId = null;
 		private String acctName = null;
 		private String csmName = null;
@@ -1196,71 +1796,108 @@ public class InsertDocumentApp {
 		private String location = null;
 		private String region = null;
 		private String supportLevel = null;
-		private int endUserCount = 0;
-		private long arr = 0L;
-		private long mrr = 0L;
-		private String m2m = "Y";
+		private Integer endUserCount = null;
+		private Long arr = null;
+		private Long mrr = null;
+		private String stage = null;
+		private String segment = null;
+		private String industry = null;
 		private String contractedDT = null;
 		private String renewalDT = null;
 		private String churnDT = null;
-		private String stage = null;
+		private Boolean churn = null;
+
+		private Integer endUserCountUp = null;
 		private String gORl = null;
-		private String industry = null;
-		private boolean churn = false;
+		private String sso = null;
+		private String sicCode = null;
+		private String m2m = "Y";
+		private String acctHealth = null;
 		
-		public BNAacct(String data) throws ParseException, Exception {
+		public BNAacct(String data, int type) throws ParseException, Exception {
 			if (data == null || data.isEmpty())
 				return;
 			
 			String[] splits = data.split("\t");
 
-			if (splits.length != RELICON_ACCT.values().length)
-				return;
-			
-			this.acctId = splits[RELICON_ACCT.acctId.ordinal()].trim();
-			this.acctName = splits[RELICON_ACCT.acctName.ordinal()].trim();
-			double mrrDouble = Double.parseDouble(splits[RELICON_ACCT.mrr.ordinal()]);
-			this.mrr = (long) (mrrDouble*100);
-			this.contractedDT = splits[RELICON_ACCT.contractedDT.ordinal()];
-			this.renewalDT = splits[RELICON_ACCT.renewalDT.ordinal()]; 
-			this.m2m = splits[RELICON_ACCT.m2m.ordinal()];
-			
-			// TODO:: adjust the churn date here if Y + 30; or + 365 days
-			this.churnDT = splits[RELICON_ACCT.churnDT.ordinal()]; 
-			
-//			if ("-9999".equals(churnDT) == false) {
-//				DateWrapper dw = new DateWrapper(usageFullDateFormat.parse(churnDT));
-//				if ("Y".equals(m2m))
-//					churnDT = dw.getNdaysAfterDateStr(30);
-//				else if ("N".equals(m2m))
-//					churnDT = dw.getNdaysAfterDateStr(365);
-//			}
-			this.churn = Boolean.parseBoolean(splits[RELICON_ACCT.churn.ordinal()]);
-			
-// BNA fake
-//			if (splits.length != BNA_ACCT.values().length)
-//				return;
-//			
-//			this.acctId = splits[BNA_ACCT.acctId.ordinal()].trim();
-//			this.acctName = splits[BNA_ACCT.acctName.ordinal()].trim();
-//			this.csmName = splits[BNA_ACCT.csmName.ordinal()].trim();
-//			this.salesLead = splits[BNA_ACCT.salesLead.ordinal()];
-//			this.tier = splits[BNA_ACCT.tier.ordinal()];
-//			this.location = splits[BNA_ACCT.state.ordinal()];
-//			this.region = splits[BNA_ACCT.region.ordinal()];
-//			this.supportLevel = splits[BNA_ACCT.supportLevel.ordinal()];
-//			this.endUserCount = Integer.parseInt(splits[BNA_ACCT.numOfEmp.ordinal()]);
-//			double arrDouble = Double.parseDouble(splits[BNA_ACCT.arr.ordinal()]);
-//			this.arr = (long) arrDouble*100;
-//			this.stage = splits[BNA_ACCT.stage.ordinal()];
-//			this.contractedDT = splits[BNA_ACCT.contractedDT.ordinal()];
-//			this.renewalDT = splits[BNA_ACCT.renewalDT.ordinal()];
-//			this.churn = Boolean.parseBoolean(splits[BNA_ACCT.churn.ordinal()]);
+			if (type == CUSTOMER_TYPE.BRIGHTIDEA.ordinal()) {
+				if (splits.length != BRIGHT_ACCT.values().length)
+					return;
+
+				this.acctId = splits[BRIGHT_ACCT.acctId.ordinal()].trim();
+				this.acctName = splits[BRIGHT_ACCT.acctName.ordinal()].trim();
+				this.csmName = splits[BRIGHT_ACCT.csmName.ordinal()].trim();
+				this.salesLead = splits[BRIGHT_ACCT.salesLead.ordinal()];
+				this.endUserCount = Integer.parseInt(splits[BRIGHT_ACCT.numOfEmp
+						.ordinal()]);
+				this.endUserCountUp = Integer.parseInt(splits[BRIGHT_ACCT.numOfEmpUp
+						.ordinal()]);
+				double arrDouble = Double.parseDouble(splits[BRIGHT_ACCT.arr
+						.ordinal()]);
+				this.arr = (long) (arrDouble * 100);
+				this.industry = splits[BRIGHT_ACCT.industry.ordinal()];
+				this.segment = splits[BRIGHT_ACCT.segment.ordinal()];
+				this.contractedDT = splits[BRIGHT_ACCT.contractedDT.ordinal()];
+				this.churnDT = splits[BRIGHT_ACCT.churnDT.ordinal()];
+				this.renewalDT = splits[BRIGHT_ACCT.renewalDT.ordinal()];
+				this.churn = Boolean.parseBoolean(splits[BRIGHT_ACCT.churn
+						.ordinal()]);
+			}
+			else if (type == CUSTOMER_TYPE.CLOUDPASSAGE.ordinal()) {
+				if (splits.length != CLOUDPAS_ACCT.values().length)
+					return;
+
+				this.acctId = splits[CLOUDPAS_ACCT.acctId.ordinal()].trim();
+				this.acctName = splits[CLOUDPAS_ACCT.acctName.ordinal()].trim();
+				this.contractedDT = splits[CLOUDPAS_ACCT.contractedDT.ordinal()];
+			}
+			else if (type == CUSTOMER_TYPE.REPLICON.ordinal()) {
+				if (splits.length != RELICON_ACCT.values().length)
+					return;
+
+				this.acctId = splits[RELICON_ACCT.acctId.ordinal()].trim();
+				this.acctName = splits[RELICON_ACCT.acctName.ordinal()].trim();
+				double mrrDouble = Double.parseDouble(splits[RELICON_ACCT.mrr
+						.ordinal()]);
+				this.mrr = (long) (mrrDouble * 100);
+				this.contractedDT = splits[RELICON_ACCT.contractedDT.ordinal()];
+				this.renewalDT = splits[RELICON_ACCT.renewalDT.ordinal()];
+				this.m2m = splits[RELICON_ACCT.m2m.ordinal()];
+
+				// TODO:: adjust the churn date here if Y + 30; or + 365 days
+				this.churnDT = splits[RELICON_ACCT.churnDT.ordinal()];
+				this.churn = Boolean.parseBoolean(splits[RELICON_ACCT.churn
+						.ordinal()]);
+			}
+			// BNA fake
+			else if (type == CUSTOMER_TYPE.BNA_SIMULATOR.ordinal()) {
+				if (splits.length != BNA_ACCT.values().length)
+					return;
+
+				this.acctId = splits[BNA_ACCT.acctId.ordinal()].trim();
+				this.acctName = splits[BNA_ACCT.acctName.ordinal()].trim();
+				this.csmName = splits[BNA_ACCT.csmName.ordinal()].trim();
+				this.salesLead = splits[BNA_ACCT.salesLead.ordinal()];
+				this.tier = splits[BNA_ACCT.tier.ordinal()];
+				this.location = splits[BNA_ACCT.state.ordinal()];
+				this.region = splits[BNA_ACCT.region.ordinal()];
+				this.supportLevel = splits[BNA_ACCT.supportLevel.ordinal()];
+				this.endUserCount = Integer.parseInt(splits[BNA_ACCT.numOfEmp
+						.ordinal()]);
+				double arrDouble = Double.parseDouble(splits[BNA_ACCT.arr
+						.ordinal()]);
+				this.arr = (long) (arrDouble * 100);
+				this.stage = splits[BNA_ACCT.stage.ordinal()];
+				this.contractedDT = splits[BNA_ACCT.contractedDT.ordinal()];
+				this.renewalDT = splits[BNA_ACCT.renewalDT.ordinal()];
+				this.churn = Boolean.parseBoolean(splits[BNA_ACCT.churn
+						.ordinal()]);
+			}
 			
 			this._id = new ObjectId();
 		}
 		
-		public Object get_id() {
+		public ObjectId get_id() {
 			return _id;
 		}
 		public String getAcctId() {
@@ -1284,13 +1921,13 @@ public class InsertDocumentApp {
 		public String getRegion() {
 			return region;
 		}
-		public int getEndUserCount() {
+		public Integer getEndUserCount() {
 			return endUserCount;
 		}
-		public long getMrr() {
+		public Long getMrr() {
 			return mrr;
 		}
-		public long getArr() {
+		public Long getArr() {
 			return arr;
 		}
 		public String getTier() {
@@ -1305,7 +1942,7 @@ public class InsertDocumentApp {
 		public String getGORl() {
 			return gORl;
 		}
-		public boolean isChurn() {
+		public Boolean isChurn() {
 			return churn;
 		}
 		public String getSupportLevel() {
@@ -1320,6 +1957,12 @@ public class InsertDocumentApp {
 		public String getChurnDT() {
 			return churnDT;
 		}
+		public String getSegment() {
+			return segment;
+		}
+		public String getSicCode() {
+			return sicCode;
+		}
 		public String getgORl() {
 			return gORl;
 		}
@@ -1330,6 +1973,64 @@ public class InsertDocumentApp {
 		}
 	}
 
+	static enum CUSTOMER_TYPE {
+		BNA_DEMO,    // 0
+		BNA_SIMULATOR,
+		REPLICON,    // 2
+		BRIGHTIDEA,
+		CLOUDPASSAGE // 4
+	}
+	static enum BRIGHT_TICKET {
+		  niceId,
+		  acctName,
+		  acctId,
+		  subject,
+		  baseScore,
+		  score,
+		  statusId,
+		  requesterId,
+		  submitterId,
+		  assignedId,
+		  group_id,
+		  orgId,
+		  createdDT,
+		  updatedDT,
+		  assignedDT,
+		  dueDT,
+		  solvedDT,
+		  resolutionDT,
+		  hasInceidents,
+		  channelid,
+		  priorityId,
+		  currentTag,
+		  solved
+	}
+	
+	static enum BRIGHT_ACCT {
+		acctId,
+		acctName,
+		acctHealth,
+		arr,
+		salesLead,
+		csmName,
+		status,
+		rating,
+		numOfEmp,
+		numOfEmpUp,
+		segment,
+		sicCode,
+		ipmGeo,
+		industry,
+		suspended,
+		sso,
+		tsPurchased,
+		createdDT,
+		contractedDT,
+		renewalDT,
+		churnDT,
+		churn
+	}
+	
 	static enum HOST_OPPTY {
 		acctId,
 		opptyId,
@@ -1403,6 +2104,12 @@ public class InsertDocumentApp {
 		firstDT,
 		lastDT,
 		churn
+	}
+	
+	static enum CLOUDPAS_ACCT {
+		acctId,
+		acctName,
+		contractedDT
 	}
 	
 	static enum RELICON_ACCT {
