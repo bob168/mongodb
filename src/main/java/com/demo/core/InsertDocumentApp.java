@@ -47,7 +47,7 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "localhost"; //"10.0.9.7"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "localhost"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
 	private static final String dbName = "bow-fa8e12345678900000000001"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
@@ -113,7 +113,7 @@ public class InsertDocumentApp {
 		try {
 			loadEvents();
 			// TODO:: repScoreExt_v1.tsv
-			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
+			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/acctCHIscore.tsv"); //TODO:: This is acceptable one repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
 //			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
 			insertBNAaccountObject("/Users/borongzhou/test/replicon/product/acctsFromAcct.tsv", "524c9ffbf7864895bdd8ee6d"); //"524c9ffbf7864895bdd8ee69");
 			acctsHScores.clear();
@@ -1242,16 +1242,16 @@ public class InsertDocumentApp {
 	void insertBNAaccountObject(String srcFile, String custIdStr) throws Exception {
 
 		try {
-//			Mongo mongo = new Mongo(ipAddr, port);
-//			DB db = mongo.getDB(dbName);
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
 
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);
-			}
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
 
 			DBCollection table = db.getCollection("account");
 			table.drop();
@@ -1414,8 +1414,8 @@ public class InsertDocumentApp {
 //		System.out.println(_idGenerator);
 		InsertDocumentApp app = new InsertDocumentApp();
 		app.setup();
-//		app.insertBrightidea();
-		app.insertCloudPassage();
+		app.insertBrightidea();
+//		app.insertCloudPassage();
 //		app.insertReplicon();
 		app.tearDown();
 		
@@ -1565,16 +1565,16 @@ public class InsertDocumentApp {
 	void insertBNAenduserObject(String srcFile) throws Exception {
 
 		try {
-//			Mongo mongo = new Mongo(ipAddr, port);
-//			DB db = mongo.getDB(dbName);
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
 
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);
-			}
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
 			
 			DBCollection table = db.getCollection("endUser");
 			table.drop();
