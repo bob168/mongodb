@@ -82,6 +82,28 @@ public class InsertDocumentApp {
 		}
 	}
 
+	public void insertBNAdemo()  {
+		
+		try {
+			loadEvents(CUSTOMER_TYPE.BNA_DEMO.ordinal());
+			// TODO:: repScoreExt_v1.tsv
+			insertGeneralAcctHealthScore("/Users/borongzhou/test/fake/product/acctHealthScoreExt.tsv", CUSTOMER_TYPE.BNA_DEMO.ordinal());
+//			insertAcctHealthScore("/Users/borongzhou/test/fake/product/acctHealthScoreExt.tsv"); //TODO:: This is acceptable one repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
+			insertGeneralAccountObject("/Users/borongzhou/test/fake/product/acctsFromAcct.tsv", CUSTOMER_TYPE.BNA_DEMO.ordinal());
+			acctsHScores.clear();
+			acctsHScores = null;
+		
+			insertUserHealthScore("/Users/borongzhou/test/fake/product/endUserHealthScoreExt.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/fake/product/endUserFromUsage.tsv");
+			
+			usersHScores.clear();
+			usersHScores = null;
+			
+		} catch(Exception ex) {
+			ex.printStackTrace(System.out);
+		}
+	}
+
 	public void insertBrightidea()  {
 		
 		try {
@@ -111,7 +133,7 @@ public class InsertDocumentApp {
 	public void insertReplicon()  {
 		
 		try {
-			loadEvents();
+			loadEvents(CUSTOMER_TYPE.REPLICON.ordinal());
 			// TODO:: repScoreExt_v1.tsv
 			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/acctCHIscore.tsv"); //TODO:: This is acceptable one repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
 //			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
@@ -212,7 +234,11 @@ public class InsertDocumentApp {
 			totalRecords++;
 			
 			splits = line.split("\t");
+
 			acctId = splits[3].toLowerCase().trim();
+			if (type == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+				acctId = splits[1].toLowerCase().trim();
+			}
 			
 			list = acctsHScores.get(acctId);
 			if (list == null) {
@@ -230,6 +256,11 @@ public class InsertDocumentApp {
 				int myScore = (int)Math.round(Double.parseDouble(splits[0]));
 				score.setScore(myScore);
 				score.setCreated(usageDateFormat.parse(splits[2] + "01"));
+			}
+			else if (type == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+				int myScore = (int)Math.round(Double.parseDouble(splits[0]));
+				score.setScore(myScore);
+				score.setCreated(usageDateFormat.parse(splits[3] + "01"));
 			}
 			
 			score.put("_id", score._id);
@@ -465,9 +496,9 @@ public class InsertDocumentApp {
 //			whereQuery.put("usageId", "100130"); 
 			DBCursor cursorDoc = user.find(whereQuery);
 			count = 10;
-			while (count--> 0 && cursorDoc.hasNext()) {
-				System.out.println(cursorDoc.next());
-			}
+//			while (count--> 0 && cursorDoc.hasNext()) {
+//				System.out.println(cursorDoc.next());
+//			}
 
 			System.out.println(user.count());
 			cursorDoc.close();
@@ -1039,6 +1070,8 @@ public class InsertDocumentApp {
 				custId = new ObjectId("524c9ffbf7864895bdd8ee72");
 			else if (custType == CUSTOMER_TYPE.CLOUDPASSAGE.ordinal())	
 				custId = new ObjectId("524c9ffbf7864895bdd8ee77");
+			else if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal())	
+				custId = new ObjectId("524c9ffbf7864895bdd8ee69");
 			
 			File sFile = new File(srcFile);
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
@@ -1088,8 +1121,8 @@ public class InsertDocumentApp {
 //				mydbObject.put("sicCode", acct.getSicCode());
 				if (acct.getContractedDT() != null)
 					mydbObject.put("contractDate", usageDateFormat.parse(acct.getContractedDT()));
-				if (acct.getRenewalDT() != null)
-					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageFullDateFormat.parse(acct.getRenewalDT()));
+				if (acct.getRenewalDT() != null) // usageFullDateFormat
+					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageDateFormat.parse(acct.getRenewalDT()));
 				if (acct.getChurnDT() != null)
 					mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
 				if (acct.isChurn() != null)
@@ -1414,7 +1447,8 @@ public class InsertDocumentApp {
 //		System.out.println(_idGenerator);
 		InsertDocumentApp app = new InsertDocumentApp();
 		app.setup();
-		app.insertBrightidea();
+		app.insertBNAdemo();
+//		app.insertBrightidea();
 //		app.insertCloudPassage();
 //		app.insertReplicon();
 		app.tearDown();
@@ -1508,12 +1542,23 @@ public class InsertDocumentApp {
 		br.close();
 	}
 	
-	static void loadEvents() throws IOException {
+	static void loadEvents(int custType) throws IOException {
 
-		String acctDates = "/Users/borongzhou/test/replicon/product/acctFirstLastDate.tsv";
-		String userDates = "/Users/borongzhou/test/replicon/product/userFirstLastDate.tsv";
-		String churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
+		String acctDates = null;
+		String userDates = null;
+		String churnDates = null;
+		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+			acctDates = "/Users/borongzhou/test/fake/product/acctFirstLastDate.tsv";
+			userDates = "/Users/borongzhou/test/fake/product/userFirstLastDate.tsv";
+			churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
+		}
+		else if (custType == CUSTOMER_TYPE.REPLICON.ordinal()) {
+			acctDates = "/Users/borongzhou/replicon/fake/product/acctFirstLastDate.tsv";
+			userDates = "/Users/borongzhou/replicon/fake/product/userFirstLastDate.tsv";
+			churnDates = "/Users/borongzhou/replicon/fake/product/acctDates.tsv";
+		}
 		
+			
 		File sFile = new File(acctDates);
 		BufferedReader br = new BufferedReader(new FileReader(sFile));
 		
@@ -1543,23 +1588,24 @@ public class InsertDocumentApp {
 		br.close();
 		
 		// acctId, startDate, renewalDate, churnDate
-//		sFile = new File(churnDates);
-//		br = new BufferedReader(new FileReader(sFile));
-//		
-//		line = null;
-//		splits = null; 
-//		while ((line = br.readLine()) != null) {
-//			splits = line.split("\t");
-//			if (splits.length != 4) {
-//				System.out.printf("invalid record: %s\n", line);
-//				continue;
-//			}
-//			
-//			AcctDates event = new AcctDates(splits[1], "-9999".equals(splits[2])? null : splits[2], "-9999".equals(splits[3])? null : splits[3]);
-//			ChurnRenewalDates.put(splits[0], event);
-//		}
-//		
-//		br.close();
+		// TODO:: for BNA demo only???
+		sFile = new File(churnDates);
+		br = new BufferedReader(new FileReader(sFile));
+		
+		line = null;
+		splits = null; 
+		while ((line = br.readLine()) != null) {
+			splits = line.split("\t");
+			if (splits.length != 4) {
+				System.out.printf("invalid record: %s\n", line);
+				continue;
+			}
+			
+			AcctDates event = new AcctDates(splits[1], "-9999".equals(splits[2])? null : splits[2], "-9999".equals(splits[3])? null : splits[3]);
+			ChurnRenewalDates.put(splits[0], event);
+		}
+		
+		br.close();
 	}
 
 	void insertBNAenduserObject(String srcFile) throws Exception {
@@ -1583,7 +1629,7 @@ public class InsertDocumentApp {
 			List<DBObject> feeds = new LinkedList<DBObject>();
 			int threshold = 1000;
 			
-			File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+			File sFile = new File(srcFile); // "/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
 			BufferedReader br = new BufferedReader(new FileReader(sFile));
 			
 			String line = null;
@@ -1870,7 +1916,7 @@ public class InsertDocumentApp {
 						.ordinal()]);
 			}
 			// BNA fake
-			else if (type == CUSTOMER_TYPE.BNA_SIMULATOR.ordinal()) {
+			else if (type == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
 				if (splits.length != BNA_ACCT.values().length)
 					return;
 
