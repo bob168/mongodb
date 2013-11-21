@@ -1,0 +1,71 @@
+package com.demo.core;
+
+import java.util.List;
+
+//from external dependencies
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TSocket;
+
+//from ImpalaConnect jar
+import com.cloudera.beeswax.api.Query;
+import com.cloudera.beeswax.api.QueryHandle;
+import com.cloudera.beeswax.api.Results;
+import com.cloudera.impala.thrift.ImpalaService;
+import com.cloudera.impala.thrift.ImpalaService.Client;
+
+/******************************************
+ * Created by: Borong Zhou Created at: Nov 11, 2013:2:39:02 PM File:
+ * ImpalaJDBCdemo.java Comments:
+ ******************************************/
+
+public class ImpalaJDBCdemo {
+
+	// here is an example query based on one of the Hue Beeswax sample tables
+	private static final String SQL_STATEMENT = "SELECT * FROM tab1;";
+
+	// set the impalad host
+	private static final String IMPALAD_HOST = "10.0.3.186";
+
+	// port 21050 is the default impalad JDBC port
+	private static final int IMPALAD_JDBC_PORT = 21050;
+
+	// port 21050 is the default impalad JDBC port
+	private static final String IMPALAD_DATABASE = "bnademo";
+	
+	private static final String CONNECTION_URL = "jdbc:hive2://" + IMPALAD_HOST
+			+ ':' + IMPALAD_JDBC_PORT + "/" + ";auth=noSasl"; // bnademo
+
+	// jdbc:hive2://impala.hostname.com:21050/;auth=noSasl
+	private static final String JDBC_DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
+
+	public static void main(String[] args) {
+		
+		new ImpalaJDBCdemo().test();
+	}
+	
+	void test() {
+	    try {
+	        //open connection
+	        TSocket transport = new TSocket(IMPALAD_HOST, IMPALAD_JDBC_PORT);
+	        transport.open();
+	        TProtocol protocol = new TBinaryProtocol(transport);
+	        //connect to client
+	        Client client = new ImpalaService.Client(protocol);
+	        client.PingImpalaService();
+	        //send the query            
+	        Query query = new Query();
+	        query.setQuery("SELECT * FROM tab1 LIMIT 5");
+	        //fetch the results
+	        QueryHandle handle = client.query(query);
+	        Results results = client.fetch(handle,false,100);
+	        List<String> data = results.data;
+	        for(int i=0;i<data.size();i++) {
+	            System.out.println(data.get(i));
+	        }
+	    }
+	    catch(Exception e) {
+	      e.printStackTrace();
+	    }
+	}
+}

@@ -24,7 +24,7 @@ File: MyInsertion.java
 Comments:
 
  ******************************************/
-public class MyInsertion {
+public class PhoenixJdbcDemo {
 
 	private static SimpleDateFormat dashFormat = new SimpleDateFormat("yyyy-MM-dd hh:mm:ss.SSSS"); // host analytics
 	private static SimpleDateFormat slashFormat = new SimpleDateFormat("yyyyMM"); // hh:mm:ss.SSS"); // replicon
@@ -37,7 +37,7 @@ public class MyInsertion {
 //		String logfile = "/Users/borongzhou/test/hostAnalysis/output.log";
 //		int custType = CUST_NAME.HOST_ANALYTICS.ordinal();
 		
-		new MyInsertion().retrieval();
+		new PhoenixJdbcDemo().retrieval();
 		
 //		try {
 //			new MyInsertion().load(args);

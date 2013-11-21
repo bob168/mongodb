@@ -47,10 +47,10 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "localhost"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "10.0.9.5"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
-	private static final String dbName = "bow-fa8e12345678900000000001"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
+	private static final String dbName = "bow-fa8e12345678900000000004"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
 	private static final String username = "bnaadmin";
 	private static final String password = "bluenose!";
 			
@@ -135,7 +135,7 @@ public class InsertDocumentApp {
 		try {
 			loadEvents(CUSTOMER_TYPE.REPLICON.ordinal());
 			// TODO:: repScoreExt_v1.tsv
-			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/acctCHIscore.tsv"); //TODO:: This is acceptable one repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
+			insertAcctHealthScore("/Users/borongzhou/test/replicon/product/repScoreExt_v1.tsv"); //TODO:: This is acceptable one repScoreExt_v1.tsv"); // acctHealthScoreExt.tsv");
 //			insertOpportunityObject("/Users/borongzhou/test/bnaAnalytics/product2/hostOppty.tsv");
 			insertBNAaccountObject("/Users/borongzhou/test/replicon/product/acctsFromAcct.tsv", "524c9ffbf7864895bdd8ee6d"); //"524c9ffbf7864895bdd8ee69");
 			acctsHScores.clear();
@@ -496,9 +496,9 @@ public class InsertDocumentApp {
 //			whereQuery.put("usageId", "100130"); 
 			DBCursor cursorDoc = user.find(whereQuery);
 			count = 10;
-//			while (count--> 0 && cursorDoc.hasNext()) {
-//				System.out.println(cursorDoc.next());
-//			}
+			while (count--> 0 && cursorDoc.hasNext()) {
+				System.out.println(cursorDoc.next());
+			}
 
 			System.out.println(user.count());
 			cursorDoc.close();
@@ -1052,6 +1052,10 @@ public class InsertDocumentApp {
 //			MongoClient mongoClient = new MongoClient(ipAddr, port);
 //			DB db = mongoClient.getDB(dbName);
 //			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);	
+//			}
 
 			// TODO:: no enduser info
 			DBCollection table = db.getCollection("endUser");
@@ -1447,8 +1451,8 @@ public class InsertDocumentApp {
 //		System.out.println(_idGenerator);
 		InsertDocumentApp app = new InsertDocumentApp();
 		app.setup();
-		app.insertBNAdemo();
-//		app.insertBrightidea();
+//		app.insertBNAdemo();
+		app.insertBrightidea();
 //		app.insertCloudPassage();
 //		app.insertReplicon();
 		app.tearDown();
@@ -1553,9 +1557,9 @@ public class InsertDocumentApp {
 			churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
 		}
 		else if (custType == CUSTOMER_TYPE.REPLICON.ordinal()) {
-			acctDates = "/Users/borongzhou/replicon/fake/product/acctFirstLastDate.tsv";
-			userDates = "/Users/borongzhou/replicon/fake/product/userFirstLastDate.tsv";
-			churnDates = "/Users/borongzhou/replicon/fake/product/acctDates.tsv";
+			acctDates = "/Users/borongzhou/test/replicon/product/acctFirstLastDate.tsv";
+			userDates = "/Users/borongzhou/test/replicon/product/userFirstLastDate.tsv";
+//			churnDates = "/Users/borongzhou/test/replicon/product/acctDates.tsv";
 		}
 		
 			
@@ -1589,6 +1593,7 @@ public class InsertDocumentApp {
 		
 		// acctId, startDate, renewalDate, churnDate
 		// TODO:: for BNA demo only???
+		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
 		sFile = new File(churnDates);
 		br = new BufferedReader(new FileReader(sFile));
 		
@@ -1604,7 +1609,7 @@ public class InsertDocumentApp {
 			AcctDates event = new AcctDates(splits[1], "-9999".equals(splits[2])? null : splits[2], "-9999".equals(splits[3])? null : splits[3]);
 			ChurnRenewalDates.put(splits[0], event);
 		}
-		
+		}
 		br.close();
 	}
 
