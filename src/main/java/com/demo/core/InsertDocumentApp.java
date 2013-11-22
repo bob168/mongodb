@@ -47,7 +47,7 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "10.0.9.5"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "10.0.9.11"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
 	private static final String dbName = "bow-fa8e12345678900000000004"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
