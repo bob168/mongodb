@@ -22,5 +22,6 @@
 	<classpathentry kind="lib" path="/Users/borongzhou/test/awscloud/mahout/mahout-examples-0.8-sources.jar"/>
 	<classpathentry kind="lib" path="/Users/borongzhou/test/awscloud/mahout/mahout-examples-0.8.jar"/>
 	<classpathentry kind="lib" path="/Users/borongzhou/test/awscloud/mahout/mahout-examples-0.8-job.jar"/>
+	<classpathentry kind="con" path="org.eclipse.jdt.USER_LIBRARY/COM_LIB"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

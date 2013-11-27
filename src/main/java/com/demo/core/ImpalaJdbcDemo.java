@@ -1,6 +1,7 @@
 package com.demo.core;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,6 +31,10 @@ public class ImpalaJdbcDemo {
     private static final String JDBC_DRIVER_NAME = "org.apache.hive.jdbc.HiveDriver";
 
     public static void main(String[] args) {
+    	execQuery();
+	}
+    
+    static void execQuery() {
 
 		System.out.println("\n=============================================");
 		System.out.println("Cloudera Impala JDBC Example");
@@ -63,5 +68,36 @@ public class ImpalaJdbcDemo {
 				e.printStackTrace(System.out);
 			}
 		}
-	}
+    }
+    
+    static void getMetadata() {
+    	
+		Connection con = null;
+
+		try {
+			Class.forName(JDBC_DRIVER_NAME);
+			con = DriverManager.getConnection(CONNECTION_URL);
+			DatabaseMetaData md = con.getMetaData();
+			ResultSet rs = md.getTables(null, null, "%", null);
+			
+			long startDT = System.currentTimeMillis();
+			System.out.println("\n== Begin Query Results ============\n");
+
+			while (rs.next()) {
+				System.out.printf("%s\t%s\t%s\t%s\n", rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4));
+			}
+			System.out.printf("== Query Time in sec: %dms\n\n", (int)(System.currentTimeMillis() - startDT));
+
+		} catch (SQLException e) {
+			e.printStackTrace();
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				con.close();
+			} catch (Exception e) {
+				e.printStackTrace(System.out);
+			}
+		}
+    }
 }
