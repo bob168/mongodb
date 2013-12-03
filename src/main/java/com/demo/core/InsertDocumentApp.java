@@ -47,13 +47,20 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
-	private static final int port = 37017; //37017; // 27017; //  
+	private static final String ipAddr = "localhost"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
 	private static final String dbName = "bow-5229f0663004e751ecdf841c"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
 	private static final String username = "bnaadmin";
 	private static final String password = "bluenose!";
-			
+	
+
+	private Map<String, LinkedHashSet<Survey>> acctSurveys = null;		
+	private Map<String, LinkedHashSet<Campaign>> acctCampaigns = null;		
+	private Map<String, LinkedHashSet<Note>> acctNotes = null;		
+	private Map<String, LinkedHashSet<Interaction>> acctInteractions = null;		
+	private Map<String, LinkedHashSet<FeatureReq>> acctFeatureReqs = null;
+
 	private Map<String, LinkedHashSet<Health>> acctsHScores = null;
 	private Map<String, LinkedHashSet<Opportunity>> acctOppties = null;
 	private Map<String, LinkedHashSet<Ticket>> acctTickets = null;
@@ -61,7 +68,7 @@ public class InsertDocumentApp {
 	private Map<String, LinkedHashSet<Health>> usersHScores = null;
 	
 	private Map<String, LinkedHashSet<Entitlement>> acctEntitlements = null;
-	private Map<String, LinkedHashSet<Invoices>> acctInvoices = null;
+	private Map<String, LinkedHashSet<Invoice>> acctInvoices = null;
 	private Map<String, LinkedHashSet<Subscription>> acctSubscriptions = null;
 	
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
@@ -160,6 +167,30 @@ public class InsertDocumentApp {
 
 	@Before
 	public void setup() {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+			
+			// dbName
+//			db.dropDatabase();
+//			mongo.getDB(dbName);
+			// set customer object
+			DBCollection table = db.getCollection("customer");
+			table.drop();
+//			table = db.getCollection("customer");
+//			
+//			BasicDBObject mydbObject = new BasicDBObject();
+//			mydbObject.put("_id", dbName.replaceFirst("bow-", ""));
+//			
+//			table.insert(mydbObject);
+			
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (MongoException e) {
+			e.printStackTrace();
+		}
+		
 		AcctDates = new HashMap<String, FirstLastEvent>();
 		UserDates = new HashMap<String, FirstLastEvent>();
 		AcctMappping = new HashMap<String, String>();
@@ -171,24 +202,39 @@ public class InsertDocumentApp {
 		acctTickets  = new HashMap<String, LinkedHashSet<Ticket>>();
 		ChurnRenewalDates = new HashMap<String, AcctDates>();
 		acctEntitlements = new HashMap<String, LinkedHashSet<Entitlement>>();
-		acctInvoices = new HashMap<String, LinkedHashSet<Invoices>>();
+		acctInvoices = new HashMap<String, LinkedHashSet<Invoice>>();
 		acctSubscriptions = new HashMap<String, LinkedHashSet<Subscription>>();
+		
+		acctSurveys = new HashMap<String, LinkedHashSet<Survey>>();
+		acctCampaigns = new HashMap<String, LinkedHashSet<Campaign>>();		
+		acctNotes = new HashMap<String, LinkedHashSet<Note>>();		
+		acctInteractions = new HashMap<String, LinkedHashSet<Interaction>>();
+		acctFeatureReqs = new HashMap<String, LinkedHashSet<FeatureReq>>();
+		
 	}
 	
 	@After
 	public void tearDown() {
 
-		AcctDates.clear();
-		AcctDates = null;
+		if (AcctDates != null) {
+			AcctDates.clear();
+			AcctDates = null;
+		}
 
-		UserDates.clear();
-		UserDates = null;
+		if (UserDates != null) {
+			UserDates.clear();
+			UserDates = null;
+		}
 		
-		AcctMappping.clear();
-		AcctMappping = null;
+		if (AcctMappping != null) {
+			AcctMappping.clear();
+			AcctMappping = null;
+		}
 		
-		AcctScoring.clear();
-		AcctScoring = null;
+		if (AcctScoring != null) {
+			AcctScoring.clear();
+			AcctScoring = null;
+		}
 
 		if (acctsHScores != null) {
 			acctsHScores.clear();
@@ -215,8 +261,30 @@ public class InsertDocumentApp {
 			acctTickets = null;
 		}
 		
-		ChurnRenewalDates.clear();
-		ChurnRenewalDates = null;
+		if (ChurnRenewalDates != null) {
+			ChurnRenewalDates.clear();
+			ChurnRenewalDates = null;
+		}
+		if (acctSurveys !=null) {
+			acctSurveys.clear();
+			acctSurveys = null;
+		}
+		if (acctCampaigns !=null) {
+			acctCampaigns.clear();
+			acctCampaigns = null;
+		}
+		if (acctNotes !=null) {
+			acctNotes.clear();
+			acctNotes = null;
+		}
+		if (acctInteractions !=null) {
+			acctInteractions.clear();
+			acctInteractions = null;
+		}
+		if (acctFeatureReqs !=null) {
+			acctFeatureReqs.clear();
+			acctFeatureReqs = null;
+		}
 		
 		sFormat = null;
 		usageDateFormat = null;
@@ -470,22 +538,22 @@ public class InsertDocumentApp {
 	public void retrieve() {
 
 		try {
-//			Mongo mongo = new Mongo(ipAddr, port);
-//			DB db = mongo.getDB(dbName);
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
 			
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);	
-			}
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);	
+//			}
 			
 			DBCollection account = db.getCollection("account");
 			
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
-//			whereQuery.put("accountId", new ObjectId("52581e71f786f6bb1c4500d5")); 
+//			whereQuery.put("accountId", new ObjectId("52965ceaf7864ff1919df558")); 
 //			whereQuery.put("name", "18-101512");
 			DBCursor cursor = account.find(whereQuery);
 
@@ -518,6 +586,1345 @@ public class InsertDocumentApp {
 		}
 	}
 	
+	void insertTicketObject(String srcFile) throws Exception {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = null;
+
+
+		LinkedHashSet<Ticket> list = null;
+		String acctId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
+		while ((line = br.readLine()) != null) {
+			
+			if (line.contains("acctId"))
+				continue;
+
+			Ticket ticket = new Ticket();
+			ticket.set(line, 3);
+
+			acctId = ticket.getAcctId().toLowerCase();
+			list = acctTickets.get(acctId);
+			if (list == null) {
+				list = new LinkedHashSet<Ticket>();
+				acctTickets.put(acctId, list);
+			}
+			
+			ticket.put("_id", ticket._id);
+			ticket.put("bnaId", ticket.bnaId);
+			ticket.put("assignee", ticket.getAssignee());
+			ticket.put("status", ticket.getStatus());
+			ticket.put("subject", ticket.getSubject());
+			ticket.put("submitter", ticket.getSubmitter());
+			ticket.put("creator", ticket.getCreator());
+			ticket.put("created", ticket.getCreated());
+			ticket.put("updated", ticket.getUpdated());
+			ticket.put("resolvedDate", ticket.getResolvedDate());
+			ticket.put("dueDate", ticket.getDueDate());
+			ticket.put("resolved", ticket.isResolved());
+			ticket.put("channel", ticket.getChannel());
+			ticket.put("priority", ticket.getPriority());
+			ticket.put("description", ticket.getDescription());
+			
+			list.add(ticket);
+			
+			totalRecords++;
+		}
+
+		br.close();
+		
+		System.out.printf("account tickets %d with invalid scores %d\ttotal records %d\n", acctTickets.size(), invalidRecords, totalRecords);
+	}
+	
+	void insertOpportunityObject(String srcFile) throws Exception {
+
+		File sFile = new File(srcFile);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+
+		String line = null;
+
+		LinkedHashSet<Opportunity> list = null;
+		String acctId = null;
+		int totalRecords = 0;
+		int invalidRecords = 0;
+		while ((line = br.readLine()) != null) {
+			
+			if (line.contains("mScore"))
+				continue;
+			totalRecords++;
+			
+			Opportunity oppty = new Opportunity();
+			oppty.set(line, CUSTOMER_TYPE.BNA_DEMO.ordinal());
+
+			acctId = oppty.getAcctId().toLowerCase();
+			list = acctOppties.get(acctId);
+			if (list == null) {
+				list = new LinkedHashSet<Opportunity>();
+				acctOppties.put(acctId, list);
+			}
+			
+			oppty.put("_id", oppty._id);
+			oppty.put("opptyId", oppty.getOpptyId());
+			oppty.put("name", oppty.getName());
+			if ("unknown".equals(oppty.getNextStep()) == false)
+				oppty.put("nextStep", oppty.getNextStep());
+			oppty.put("stage", oppty.getStage());
+			oppty.put("owner", oppty.getOwner());
+			oppty.put("probability", oppty.getProbability());
+			oppty.put("leadSource", oppty.getLeadSource());
+			oppty.put("externalService", oppty.getExternalService());
+			if ("unknown".equals(oppty.getExternalServiceId()) == false)
+				oppty.put("externalServiceId", oppty.getExternalServiceId());
+			oppty.put("amount", oppty.getAmount());
+			if ("cId".equals(oppty.getCampaignId()) == false)
+				oppty.put("campaignId", oppty.getCampaignId());
+			oppty.put("closeDate", oppty.getCloseDate());
+			if (oppty.getLastActivity() != null)
+				oppty.put("lastActivity", oppty.getLastActivity());
+			oppty.put("created", oppty.getCreated());
+			oppty.put("expectedRevenue", oppty.getExpectedRevenue());
+			oppty.put("forecastCategory", oppty.getForecastCategory());
+			oppty.put("closed", oppty.isClosed());
+//			oppty.put("deleted", oppty.isDeleted());
+			oppty.put("open", oppty.isOpen());
+			if ("unknown".equals(oppty.getDescription()) == false)
+				oppty.put("description", oppty.getDescription());
+			if (oppty.getProduct() != null && "unknown".equals(oppty.getProduct()) == false)
+				oppty.put("product", oppty.getProduct());
+			
+			list.add(oppty);
+		}
+
+		br.close();
+		
+		System.out.printf("account opportunities %d with invalid scores %d\ttotal scores %d\n", acctOppties.size(), invalidRecords, totalRecords);
+	}
+	
+	void insertGeneralAccountObject(String srcFile, int custType) throws Exception {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);	
+//			}
+
+			// TODO:: no enduser info
+			DBCollection table = db.getCollection("endUser");
+			table.drop();
+			table = db.getCollection("endUser");
+			
+			table = db.getCollection("account");
+			table.drop();
+			table = db.getCollection("account");
+			
+			List<DBObject> feeds = new LinkedList<DBObject>();
+			int threshold = 1000;
+
+			ObjectId custId = null;
+			if (custType == CUSTOMER_TYPE.BRIGHTIDEA.ordinal())
+				custId = new ObjectId("5229f0663004e751ecdf8425");
+			else if (custType == CUSTOMER_TYPE.CLOUDPASSAGE.ordinal())	
+				custId = new ObjectId("5229f0663004e751ecdf8427");
+			else if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal())	
+				custId = new ObjectId("5229f0663004e751ecdf841c");
+			
+			File sFile = new File(srcFile);
+			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			String line = null;		
+			FirstLastEvent event = null;
+			
+			Set<String> acctSets = new HashSet<String>();
+			while (threshold > 0 && (line = br.readLine()) != null) {
+								
+				if (line.contains("acctId"))
+					continue;
+				
+				BasicDBObject mydbObject = new BasicDBObject();
+				BNAacct acct = new BNAacct(line, custType);
+				if (acctSets.contains(acct.getAcctId()))
+					continue;
+				else
+					acctSets.add(acct.getAcctId());
+				
+				threshold--;
+				mydbObject.put("customerId", custId);
+				mydbObject.put("_id", acct.get_id());
+				mydbObject.put("usageId", acct.getAcctId());
+				if (acct.getArr() != null)
+					mydbObject.put("arr", acct.getArr());
+				if (acct.getMrr() != null)
+					mydbObject.put("mrr", acct.getMrr());
+				if (acct.getCsmName() != null)
+					mydbObject.put("csmName", acct.getCsmName());
+				if (acct.getSalesLead() != null)
+					mydbObject.put("salesLead", acct.getSalesLead());
+				if (acct.getEndUserCount() != null)
+					mydbObject.put("endUserCount", acct.getEndUserCount());
+				if (acct.getLocation() != null)
+					mydbObject.put("location", acct.getLocation());
+				if (acct.getName() != null)
+					mydbObject.put("name", acct.getName());
+//				mydbObject.put("region", acct.getRegion());
+//				mydbObject.put("stage", acct.getStage());
+//				mydbObject.put("tier", acct.getTier());		
+//				mydbObject.put("supportLevel", acct.getSupportLevel());
+				if (acct.getIndustry() != null)
+					mydbObject.put("industry", acct.getIndustry());	
+				if (acct.getSegment() != null)
+					mydbObject.put("segment", acct.getSegment());	
+//				mydbObject.put("sicCode", acct.getSicCode());
+				if (acct.getContractedDT() != null)
+					mydbObject.put("contractDate", usageDateFormat.parse(acct.getContractedDT()));
+				if (acct.getRenewalDT() != null) // usageFullDateFormat
+					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageDateFormat.parse(acct.getRenewalDT()));
+				if (acct.getChurnDT() != null)
+					mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
+				if (acct.isChurn() != null)
+					mydbObject.put("churn", acct.isChurn());	
+				
+				if (acct == null || acct.getAcctId() == null) {
+					System.out.printf("no acct for data %s\n", line); 
+					continue;
+				}
+				
+				// TODO:: general case
+				event = AcctDates.get(acct.getAcctId().toLowerCase());
+				if (event == null) {
+					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+				}
+				if (event != null) {
+					String dateStr = event.getFirstDate();
+					mydbObject.put("firstEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
+					dateStr = event.getLastDate();
+					mydbObject.put("lastEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
+				}
+				
+				String acctId = acct.getAcctId().toLowerCase();
+				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
+				if (hscores == null || hscores.isEmpty()) {
+					System.out.printf("no hscore for account %s\n", acctId);
+				}
+				else
+					mydbObject.put("healthScores", hscores);
+				LinkedHashSet<Ticket> tickets = acctTickets.get(acctId);
+				if (tickets == null || tickets.isEmpty())
+					System.out.printf("no tickets for account %s\n", acctId);
+				else
+					mydbObject.put("tickets", tickets);
+				
+				if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+					mydbObject.put("tickets", acctTickets.get("ticket"));
+					mydbObject.put("opportunities", acctOppties.get("oppty"));
+					mydbObject.put("entitlements", acctEntitlements.get("entitlement"));
+					mydbObject.put("subscriptions", acctSubscriptions.get("subscription"));
+					mydbObject.put("invoices", acctInvoices.get("invoice"));
+
+					mydbObject.put("notes", acctNotes.get("note"));
+					mydbObject.put("surveys", acctSurveys.get("survey"));
+					mydbObject.put("campaigns", acctCampaigns.get("campaign"));
+					mydbObject.put("features", acctFeatureReqs.get("feature"));
+					mydbObject.put("interactions", acctInteractions.get("interaction"));
+				
+				}
+				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
+								
+				feeds.add(mydbObject);
+				mydbObject = null;
+				
+				if (threshold == 0) {
+					table.insert(feeds);
+					threshold = 1000;
+					feeds.clear();
+					feeds = new LinkedList<DBObject>();
+				}
+			}
+			acctSets.clear();
+			acctSets = null;
+			
+			if (threshold > 0) {
+				table.insert(feeds);
+				feeds.clear();
+				feeds = null;
+			}
+			
+			br.close();
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace(System.out);
+		} catch (MongoException e) {
+			e.printStackTrace(System.out);
+		} catch (IOException e) {
+			e.printStackTrace(System.out);
+		}
+	}
+
+	
+	void insertOpenAccountObject(String srcFile) throws Exception {
+
+		try {
+			MongoClient mongoClient = new MongoClient(ipAddr, port);
+			DB db = mongoClient.getDB(dbName);
+			boolean auth = db.authenticate("bnaadmin", "bluenose!".toCharArray());
+
+			DBCollection table = db.getCollection("account");
+			table.drop();
+			table = db.getCollection("account");
+			
+			List<DBObject> feeds = new LinkedList<DBObject>();
+			int threshold = 1000;
+			
+			File sFile = new File(srcFile);
+			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			ObjectId custId = new ObjectId("524c9ffbf7864895bdd8ee75");
+			
+			String line = null;
+			String[] splits = null;
+			while (threshold-- > 0 && (line = br.readLine()) != null) {
+
+				if (line.contains("acctId"))
+					continue;
+				
+				BasicDBObject mydbObject = new BasicDBObject();
+				
+				splits = line.split("\t");
+				if (splits == null || splits.length != OPEN_ACCT.values().length)
+					return;
+
+				String acctId = splits[OPEN_ACCT.acctId.ordinal()].trim().toLowerCase();
+				 
+				mydbObject.put("customerId", custId); // openVPN
+				mydbObject.put("_id", new ObjectId());
+				mydbObject.put("name", acctId);	
+				mydbObject.put("usageId", acctId);
+				mydbObject.put("totalBandwidth", splits[OPEN_ACCT.tBandwidth.ordinal()].trim());
+				double dVal = Double.parseDouble(splits[OPEN_ACCT.avgBandwidth.ordinal()].trim());
+				mydbObject.put("avgBandwidth", dFormat.format(dVal));
+				mydbObject.put("totalDuration", splits[OPEN_ACCT.tDuration.ordinal()].trim());
+				dVal = Double.parseDouble(splits[OPEN_ACCT.avgDuration.ordinal()].trim());
+				mydbObject.put("avgDuration", dFormat.format(dVal));
+				mydbObject.put("firstEvent", new Date(Long.parseLong((splits[OPEN_ACCT.firstEvent.ordinal()].trim())) * 1000));
+				mydbObject.put("lastEvent", new Date(Long.parseLong((splits[OPEN_ACCT.lastEvent.ordinal()].trim()))* 1000));
+				dVal = Double.parseDouble(splits[OPEN_ACCT.livetime.ordinal()].trim());
+				Long iVal = Math.round(dVal); 
+				mydbObject.put("livetime", iVal);
+				mydbObject.put("healthScores", acctsHScores.get(acctId));
+				
+				feeds.add(mydbObject);
+				mydbObject = null;
+				
+				if (threshold == 0) {
+					table.insert(feeds);
+					threshold = 1000;
+					feeds.clear();
+					feeds = new LinkedList<DBObject>();
+				}
+			}
+			if (threshold > 0) {
+				table.insert(feeds);
+				feeds.clear();
+				feeds = null;
+			}
+			
+			br.close();
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (MongoException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
+	
+	void insertBNAaccountObject(String srcFile, String custIdStr) throws Exception {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
+
+			DBCollection table = db.getCollection("account");
+			table.drop();
+			table = db.getCollection("account");
+			
+			List<DBObject> feeds = new LinkedList<DBObject>();
+			int threshold = 1000;
+
+			ObjectId custId = new ObjectId(custIdStr);
+			
+			File sFile = new File(srcFile);
+			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			String line = null;		
+			FirstLastEvent event = null;
+			LinkedHashSet<Finance> mrrList = null;
+			Finance mrrObj = null;
+			
+			while (threshold > 0 && (line = br.readLine()) != null) {
+			
+				mrrObj = new Finance();
+				String[] splits = line.split(CommonTokens.TAB_DELIMITER);
+				mrrObj.setCreated(usageFullDateFormat.parse(splits[RELICON_ACCT.eventdt.ordinal()]));
+				mrrObj.setValue((long)(Double.parseDouble(splits[RELICON_ACCT.mrr.ordinal()]) * 100));
+
+				mrrObj.put("_id", mrrObj._id);
+				mrrObj.put("created", mrrObj.created);
+				mrrObj.put("value", mrrObj.value);
+				mrrObj.put("currency", mrrObj.currency);
+				mrrObj.put("unit", mrrObj.unit);
+				
+				mrrList = acctFinances.get(splits[RELICON_ACCT.acctId.ordinal()]);
+				if (mrrList == null) {
+					mrrList = new LinkedHashSet<Finance>();
+					acctFinances.put(splits[RELICON_ACCT.acctId.ordinal()].trim().toLowerCase(), mrrList);
+				}
+				
+				mrrList.add(mrrObj);
+			}
+			
+			br.close();
+			
+			br = new BufferedReader(new FileReader(sFile));
+			
+			Set<String> acctSets = new HashSet<String>();
+			while (threshold > 0 && (line = br.readLine()) != null) {
+								
+				BasicDBObject mydbObject = new BasicDBObject();
+				BNAacct acct = new BNAacct(line, 2);
+				if (acctSets.contains(acct.getAcctId()))
+					continue;
+				else
+					acctSets.add(acct.getAcctId());
+				
+				threshold--;
+				mydbObject.put("customerId", custId);
+				mydbObject.put("_id", acct.get_id());
+				mydbObject.put("usageId", acct.getAcctId());
+//				mydbObject.put("arr", acct.getArr());
+				mydbObject.put("mrr", acct.getMrr());
+//				mydbObject.put("csmName", acct.getCsmName());
+//				mydbObject.put("salesLead", acct.getSalesLead());
+//				mydbObject.put("endUserCount", acct.getEndUserCount());
+//				mydbObject.put("location", acct.getLocation());
+				mydbObject.put("name", acct.getName());
+//				mydbObject.put("region", acct.getRegion());
+//				mydbObject.put("stage", acct.getStage());
+//				mydbObject.put("tier", acct.getTier());		
+//				mydbObject.put("supportLevel", acct.getSupportLevel());
+//				mydbObject.put("industry", acct.getIndustry());		
+				mydbObject.put("churn", acct.isChurn());	
+				if (acct == null || acct.getAcctId() == null) {
+					System.out.printf("no acct for data %s\n", line); 
+					continue;
+				}
+
+				// TODO:: general case
+				event = AcctDates.get(acct.getAcctId().toLowerCase());
+				if (event == null) {
+					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+				}
+				if (event != null) {
+					mydbObject.put("firstEvent", usageMonthFormat.parse(event.getFirstDate()));
+					mydbObject.put("lastEvent", usageMonthFormat.parse(event.getLastDate()));
+				}
+//				AcctDates dates = ChurnRenewalDates.get(acct.getAcctId());
+//				if (dates == null) { 
+//					dates = new AcctDates(null, null, null);
+//					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
+//				}
+//				mydbObject.put("contractDate", dates.getStartDate());	
+//				mydbObject.put("renewalDate", dates.getRenewalDate());
+//				mydbObject.put("churnDate", dates.getChurnDate());
+				// TODO:: for Replicon only
+				mydbObject.put("contractDate", usageFullDateFormat.parse(acct.getContractedDT()));	
+				mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageFullDateFormat.parse(acct.getRenewalDT()));
+				mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
+				
+				String acctId = acct.getAcctId().toLowerCase();
+				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
+				if (hscores == null) {
+					System.out.printf("no hscore for account %s\n", acctId);
+				}
+				mydbObject.put("healthScores", hscores);
+//				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
+				mrrList = acctFinances.get(acctId);
+				mydbObject.put("mrrList", mrrList);
+				
+				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
+								
+				feeds.add(mydbObject);
+				mydbObject = null;
+				
+				if (threshold == 0) {
+					table.insert(feeds);
+					threshold = 1000;
+					feeds.clear();
+					feeds = new LinkedList<DBObject>();
+				}
+			}
+			acctSets.clear();
+			acctSets = null;
+			
+			if (threshold > 0) {
+				table.insert(feeds);
+				feeds.clear();
+				feeds = null;
+			}
+			
+			br.close();
+
+		} catch (UnknownHostException e) {
+			e.printStackTrace(System.out);
+		} catch (MongoException e) {
+			e.printStackTrace(System.out);
+		} catch (IOException e) {
+			e.printStackTrace(System.out);
+		}
+	}
+
+	public static void main(String[] args) throws IOException  {
+		
+//		File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+//		BufferedReader br = new BufferedReader(new FileReader(sFile));
+//		
+//		String line = null;
+//		
+//		while((line = br.readLine()) != null) {
+//			String[] splits = line.split("\t");
+//			
+//			if ("521093".equals(splits[0])) {
+//				
+//				
+//				System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
+//			}
+//		}
+//		
+//		br.close();
+
+//		System.out.println(_idGenerator);
+		InsertDocumentApp app = new InsertDocumentApp();
+		app.setup();
+		app.insertBNAdemo();
+//		app.insertBrightidea();
+//		app.insertCloudPassage();
+//		app.insertReplicon();
+		app.tearDown();
+		
+//		try {
+//			// mongodb://admin:password@localhost:27017/db
+////			MongoClient.connect(addr);
+//			
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB("bow-openvpn");
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
+//			
+//			DBCollection collection = db.getCollection("account");
+//			collection.drop();
+//			collection = db.getCollection("account");
+//
+//			InsertDocumentApp app = new InsertDocumentApp();
+//			app.setup();
+//			app.insertOpenVPN();
+//			app.tearDown();
+//			
+////			// 2. BasicDBObjectBuilder example
+////			System.out.println("BasicDBObjectBuilder example...");
+////			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
+////					.add("database", "bow").add("table", "account");
+////
+////			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
+////					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
+////					.add("index", "vps_index1").add("active", "true");
+////
+////			documentBuilder.add("detail", documentBuilderDetail.get());
+////
+////			collection.insert(documentBuilder.get());
+////
+////			DBCursor cursorDocBuilder = collection.find();
+////			while (cursorDocBuilder.hasNext()) {
+////				System.out.println(cursorDocBuilder.next());
+////			}
+////
+////			collection.remove(new BasicDBObject());
+//			
+////			
+////			// 3. Map example
+////			System.out.println("Map example...");
+////			Map<String, Object> documentMap = new HashMap<String, Object>();
+////			documentMap.put("database", "bow");
+////			documentMap.put("table", "hosting");
+////
+////			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
+////			documentMapDetail.put("records", "99");
+////			documentMapDetail.put("index", "vps_index1");
+////			documentMapDetail.put("active", "true");
+////
+////			documentMap.put("detail", documentMapDetail);
+////
+////			collection.insert(new BasicDBObject(documentMap));
+////
+////			DBCursor cursorDocMap = collection.find();
+////			while (cursorDocMap.hasNext()) {
+////				System.out.println(cursorDocMap.next());
+////			}
+////
+////			collection.remove(new BasicDBObject());
+//
+//		} catch(Throwable ex) {
+//			ex.printStackTrace(System.out);
+//		}
+	}
+		
+	static void loadAcctEvents(String acctDates) throws IOException {
+
+		File sFile = new File(acctDates);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+		
+		String line = null;
+		String[] splits = null; 
+		
+		while ((line = br.readLine()) != null) {
+			if (line.contains("acctId"))
+				continue;
+			
+			splits = line.split("\t");
+			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+			AcctDates.put(splits[2].toLowerCase(), event);
+		}
+		
+		br.close();
+	}
+	
+	void loadEvents(int custType) throws IOException, ParseException {
+
+		String acctDates = null;
+		String userDates = null;
+		String churnDates = null;
+		String subscriptions = null;
+		String tickets = null;
+		String entitlements = null;
+		String invoices = null;
+		String opportunities = null;
+
+		String survey = null;
+		String campaigns = null;
+		String notes = null;
+		String interactions = null;
+		String featureReq = null;
+		
+		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+			acctDates = "/Users/borongzhou/test/fake/product/acctFirstLastDate.tsv";
+			userDates = "/Users/borongzhou/test/fake/product/userFirstLastDate.tsv";
+			churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
+			subscriptions = "/Users/borongzhou/test/fake/product/subscription.tsv";
+			tickets = "/Users/borongzhou/test/fake/product/tickets.tsv";
+			entitlements = "/Users/borongzhou/test/fake/product/entitlement.tsv";
+			invoices = "/Users/borongzhou/test/fake/product/invoices.tsv";
+			opportunities = "/Users/borongzhou/test/fake/product/oppty.tsv";
+
+			survey = "/Users/borongzhou/test/fake/product/survey.tsv";
+			campaigns = "/Users/borongzhou/test/fake/product/campaigns.tsv";
+			notes = "/Users/borongzhou/test/fake/product/notes.tsv";
+			interactions = "/Users/borongzhou/test/fake/product/interactions.tsv";
+			featureReq = "/Users/borongzhou/test/fake/product/featureReq.tsv";
+		}
+		else if (custType == CUSTOMER_TYPE.REPLICON.ordinal()) {
+			acctDates = "/Users/borongzhou/test/replicon/product/acctFirstLastDate.tsv";
+			userDates = "/Users/borongzhou/test/replicon/product/userFirstLastDate.tsv";
+//			churnDates = "/Users/borongzhou/test/replicon/product/acctDates.tsv";
+		}
+		
+			
+		File sFile = new File(acctDates);
+		BufferedReader br = new BufferedReader(new FileReader(sFile));
+		
+		String line = null;
+		String[] splits = null; 
+		
+		while ((line = br.readLine()) != null) {
+			splits = line.split("\t");
+			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+			AcctDates.put(splits[2].toLowerCase(), event);
+		}
+		
+		br.close();
+		
+		sFile = new File(userDates);
+		br = new BufferedReader(new FileReader(sFile));
+		
+		line = null;
+		splits = null; 
+		
+		while ((line = br.readLine()) != null) {
+			splits = line.split("\t");
+			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+			UserDates.put(splits[2] + "\t" + splits[3], event);
+		}
+		
+		br.close();
+		
+		// acctId, startDate, renewalDate, churnDate
+		// TODO:: for BNA demo only???
+		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+			sFile = new File(churnDates);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = null;
+			splits = null;
+			while ((line = br.readLine()) != null) {
+				splits = line.split("\t");
+				if (splits.length != 4) {
+					System.out.printf("invalid record: %s\n", line);
+					continue;
+				}
+
+				AcctDates event = new AcctDates(splits[1],
+						"-9999".equals(splits[2]) ? null : splits[2],
+						"-9999".equals(splits[3]) ? null : splits[3]);
+				ChurnRenewalDates.put(splits[0], event);
+			}
+			br.close();
+			
+			sFile = new File(subscriptions);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Subscription> sList = null;
+			while ((line = br.readLine()) != null) {
+				Subscription myObj = new Subscription();
+				myObj.set(line, custType);
+				sList = acctSubscriptions.get("subscription");
+				if (sList == null) {
+					sList = new LinkedHashSet<Subscription>();
+					acctSubscriptions.put("subscription", sList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("activated", myObj.getActivated());
+				myObj.put("currency", myObj.getCurrency());
+				myObj.put("current_period_ends_at", myObj.getCurrent_period_ends_at());
+				myObj.put("current_period_started_at", myObj.getCurrent_period_started_at());
+				myObj.put("name", myObj.getName());
+				myObj.put("quantity", myObj.getQuantity());
+				myObj.put("state", myObj.getState());
+				
+				sList.add(myObj);
+			}
+			
+			br.close();
+			
+			sFile = new File(entitlements);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Entitlement> eList = null;
+			while ((line = br.readLine()) != null) {
+				Entitlement myObj = new Entitlement();
+				myObj.set(line, custType);
+				eList = acctEntitlements.get("entitlement");
+				if (eList == null) {
+					eList = new LinkedHashSet<Entitlement>();
+					acctEntitlements.put("entitlement", eList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("description", myObj.getDescription());
+				myObj.put("name", myObj.getName());
+				myObj.put("productId", myObj.getProductId());
+				myObj.put("startDate", myObj.getStartDate());
+				myObj.put("status", myObj.getStatus());
+				myObj.put("type", myObj.getType());
+				
+				eList.add(myObj);
+			}
+			
+			br.close();
+
+			sFile = new File(invoices);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Invoice> iList = null;
+			while ((line = br.readLine()) != null) {
+				Invoice myObj = new Invoice();
+				myObj.set(line, custType);
+				iList = acctInvoices.get("invoice");
+				if (iList == null) {
+					iList = new LinkedHashSet<Invoice>();
+					acctInvoices.put("invoice", iList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("created", myObj.getCreated());
+				myObj.put("currency", myObj.getCurrency());
+				myObj.put("paidDate", myObj.getPaidDate());
+				myObj.put("poNumber", myObj.getPoNumber());
+				myObj.put("state", myObj.getState());
+				myObj.put("total", myObj.getTotal());
+				
+				iList.add(myObj);
+			}
+			
+			br.close();
+
+			sFile = new File(tickets);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Ticket> tList = null;
+			while ((line = br.readLine()) != null) {
+				Ticket myObj = new Ticket();
+				myObj.set(line, custType);
+				tList = acctTickets.get("ticket");
+				if (tList == null) {
+					tList = new LinkedHashSet<Ticket>();
+					acctTickets.put("ticket", tList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("created", myObj.getCreated());
+				myObj.put("status", myObj.getStatus());
+				myObj.put("subject", myObj.getSubject());
+				myObj.put("priority", myObj.getPriority());
+				myObj.put("assignee", myObj.getAssignee());
+				myObj.put("resolvedDate", myObj.getResolvedDate());
+				
+				tList.add(myObj);
+			}
+			
+			br.close();
+			sFile = new File(opportunities);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Opportunity> pList = null;
+			while ((line = br.readLine()) != null) {
+				Opportunity myObj = new Opportunity();
+				myObj.set(line, custType);
+				pList = acctOppties.get("oppty");
+				if (pList == null) {
+					pList = new LinkedHashSet<Opportunity>();
+					acctOppties.put("oppty", pList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("name", myObj.getName());
+				myObj.put("stage", myObj.getStage());
+				myObj.put("probability", myObj.getProbability());
+				myObj.put("amount", myObj.getAmount());
+				myObj.put("expectedRevenue", myObj.getExpectedRevenue());
+				myObj.put("closeDate", myObj.getCloseDate());
+				
+				pList.add(myObj);
+			}
+			
+			br.close();
+			
+			sFile = new File(survey);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Survey> suvList = null;
+			while ((line = br.readLine()) != null) {
+				Survey myObj = new Survey();
+				myObj.set(line, custType);
+				suvList = acctSurveys.get("survey");
+				if (suvList == null) {
+					suvList = new LinkedHashSet<Survey>();
+					acctSurveys.put("survey", suvList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("name", myObj.getName());
+				myObj.put("endUser", myObj.getEndUser());
+				myObj.put("value", myObj.getValue());
+				myObj.put("createdDate", myObj.getCreatedDate());
+				
+				suvList.add(myObj);
+			}
+			
+			br.close();
+
+			sFile = new File(featureReq);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<FeatureReq> fetList = null;
+			while ((line = br.readLine()) != null) {
+				FeatureReq myObj = new FeatureReq();
+				myObj.set(line, custType);
+				fetList = acctFeatureReqs.get("feature");
+				if (fetList == null) {
+					fetList = new LinkedHashSet<FeatureReq>();
+					acctFeatureReqs.put("feature", fetList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("assignee", myObj.getAssignee());
+				myObj.put("createdDate", myObj.getCreatedDate());
+				myObj.put("status", myObj.getStatus());
+				myObj.put("subject", myObj.getSubject());
+				myObj.put("priority", myObj.getPriority());
+				myObj.put("resolvedDate", myObj.getResolvedDate());
+				
+				fetList.add(myObj);
+			}
+			
+			br.close();
+
+			sFile = new File(interactions);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Interaction> intList = null;
+			while ((line = br.readLine()) != null) {
+				Interaction myObj = new Interaction();
+				myObj.set(line, custType);
+				intList = acctInteractions.get("interaction");
+				if (intList == null) {
+					intList = new LinkedHashSet<Interaction>();
+					acctInteractions.put("interaction", intList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("date", myObj.getDate());
+				myObj.put("endUser", myObj.getEndUser());
+				myObj.put("type", myObj.getType());
+				myObj.put("user", myObj.getUser());
+				
+				intList.add(myObj);
+			}
+			
+			br.close();
+
+			sFile = new File(notes);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Note> nList = null;
+			while ((line = br.readLine()) != null) {
+				Note myObj = new Note();
+				myObj.set(line, custType);
+				nList = acctNotes.get("note");
+				if (nList == null) {
+					nList = new LinkedHashSet<Note>();
+					acctNotes.put("note", nList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("date", myObj.getDate());
+				myObj.put("title", myObj.getTitle());
+				myObj.put("user", myObj.getUser());
+				
+				nList.add(myObj);
+			}
+			
+			br.close();
+
+			sFile = new File(campaigns);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = br.readLine();
+			LinkedHashSet<Campaign> cList = null;
+			while ((line = br.readLine()) != null) {
+				Campaign myObj = new Campaign();
+				myObj.set(line, custType);
+				cList = acctCampaigns.get("campaign");
+				if (cList == null) {
+					cList = new LinkedHashSet<Campaign>();
+					acctCampaigns.put("campaign", cList);
+				}
+				
+				myObj.put("_id", myObj._id);
+				myObj.put("date", myObj.getDate());
+				myObj.put("open", myObj.getOpen());
+				myObj.put("name", myObj.getName());
+				myObj.put("recipient", myObj.getRecipient());
+				
+				cList.add(myObj);
+			}
+			
+			br.close();
+		}
+	}
+
+	void insertBNAenduserObject(String srcFile) throws Exception {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
+			
+			DBCollection table = db.getCollection("endUser");
+			table.drop();
+			table = db.getCollection("endUser");
+			
+			List<DBObject> feeds = new LinkedList<DBObject>();
+			int threshold = 1000;
+			
+			File sFile = new File(srcFile); // "/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+			BufferedReader br = new BufferedReader(new FileReader(sFile));
+			
+			String line = null;
+			
+//			while((line = br.readLine()) != null) {
+//				String[] splits = line.split("\t");
+//				
+//				if ("521093".equals(splits[0])) {	
+//					System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
+//				}
+//			}
+//			
+//			br.close();
+//			
+//			sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+//			br = new BufferedReader(new FileReader(sFile));
+			
+			line = null;
+			int total = 0;
+			int invalid = 0;
+			FirstLastEvent event = null;
+			while ((line = br.readLine()) != null) {
+				
+				String[] splits = line.split("\t");
+				
+				if ("521093".equals(splits[0])) {
+					System.out.printf("inserting data for account %s\n", line);
+				}
+				BasicDBObject mydbObject = new BasicDBObject();
+				BNAendUser ensuser = new BNAendUser(line);
+
+				total++;
+				if (ensuser.getAccountId() == null) {
+					invalid++;
+					continue;
+				}
+				
+				mydbObject.put("_id", ensuser.get_id());
+				mydbObject.put("accountId", ensuser.getAccountId());
+				mydbObject.put("name", ensuser.getUserId());	
+				mydbObject.put("firstEvent", ensuser.getFirstDT() == null? null : usageMonthFormat.parse(ensuser.getFirstDT()));
+				mydbObject.put("lastEvent", ensuser.getLastDT() == null? null : usageMonthFormat.parse(ensuser.getLastDT()));
+				
+//				event = UserDates.get(ensuser.getUserId());
+//				if (event == null) {
+//					System.out.printf("no event for user: Name=%s\n", ensuser.getUserId());
+//					continue;
+//					
+//				}
+//				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
+//				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
+				String userId = ensuser.getAcctId() + "-" + ensuser.getUserId();
+//				mydbObject.put("healthScores", usersHScores.get(userId.toLowerCase()));
+				
+				feeds.add(mydbObject);
+				mydbObject = null;
+				threshold--;
+				
+				if (threshold == 0) {
+					table.insert(feeds);
+					threshold = 1000;
+					feeds.clear();
+					feeds = new LinkedList<DBObject>();
+				}
+			}
+			if (threshold > 0 && feeds.isEmpty() == false) {
+				table.insert(feeds);
+				feeds.clear();
+				feeds = null;
+			}
+			
+			br.close();
+			
+			System.out.printf("Enduser, total=%d\tinvalid=%d\n ", total, invalid);
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (MongoException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+		
+	}
+	
+	String toJson(String line) throws Exception {
+		return new BNAacct(line, 0).toString();
+	}
+	
+	String toJson2(String line) throws Exception {
+		return new UsageCount(line).toString();
+	}
+
+	public static class FeatureReq extends BasicDBObject {
+		private ObjectId _id = new ObjectId();
+		private Date createdDate;
+		private String status;
+		private String subject;
+		private Integer priority;
+		private String assignee;
+		private Date resolvedDate;
+
+		public void set(String data, int type) throws ParseException {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String[] splits = data.split("\t");
+			
+			if (splits.length != 6)
+				return;
+			
+			this.createdDate = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.status = splits[1];
+			this.subject = splits[2];
+			this.priority = StringUtil.isNullOrEmpty(splits[3]) || "-".equals(splits[3])? null : Integer.parseInt(splits[3]);
+			this.assignee = splits[4];
+			this.resolvedDate = StringUtil.isNullOrEmpty(splits[5]) || "-".equals(splits[5])? null : sFormat.parse(splits[5]);
+		}
+
+		public ObjectId get_id() {
+			return _id;
+		}
+		public Date getCreatedDate() {
+			return createdDate;
+		}
+		public String getStatus() {
+			return status;
+		}
+		public String getSubject() {
+			return subject;
+		}
+		public Integer getPriority() {
+			return priority;
+		}
+		public String getAssignee() {
+			return assignee;
+		}
+		public Date getResolvedDate() {
+			return resolvedDate;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+	}
+
+	
+	public static class Interaction extends BasicDBObject {
+		private ObjectId _id = new ObjectId();
+		private Date date;
+		private String endUser;
+		private String type;
+		private String user;
+
+		public void set(String data, int type) throws ParseException {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String[] splits = data.split("\t");
+			
+			if (splits.length != 4)
+				return;
+			
+			this.date = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.endUser = splits[1];
+			this.type = splits[2];
+			this.user = splits[3];
+		}
+
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getUser() {
+			return user;
+		}
+		public String getEndUser() {
+			return endUser;
+		}
+		public String getType() {
+			return type;
+		}
+		public Date getDate() {
+			return date;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+	}
+
+	
+	public static class Note extends BasicDBObject {
+		private ObjectId _id = new ObjectId();
+		private Date date;
+		private String title;
+		private String user;
+
+		public void set(String data, int type) throws ParseException {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String[] splits = data.split("\t");
+			
+			if (splits.length != 3)
+				return;
+			
+			this.date = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.title = splits[1];
+			this.user = splits[2];
+		}
+
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getTitle() {
+			return title;
+		}
+		public String getUser() {
+			return user;
+		}
+		public Date getDate() {
+			return date;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+	}
+
+	
+	public static class Campaign extends BasicDBObject {
+		private ObjectId _id = new ObjectId();
+		private String name;
+		private String recipient;
+		private Boolean open;
+		private Date date;
+
+		public void set(String data, int type) throws ParseException {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String[] splits = data.split("\t");
+			
+			if (splits.length != 4)
+				return;
+			
+			this.date = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.name = splits[1];
+			this.recipient = splits[2];
+			this.open = StringUtil.isNullOrEmpty(splits[3]) || "-".equals(splits[0])? false : Boolean.parseBoolean(splits[3]);
+		}
+
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getName() {
+			return name;
+		}
+		public String getRecipient() {
+			return recipient;
+		}
+		public Boolean getOpen() {
+			return open;
+		}
+		public Date getDate() {
+			return date;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+	}
+
+	
+	public static class Survey extends BasicDBObject {
+		private ObjectId _id = new ObjectId();
+		private String name;
+		private String endUser;
+		private String value;
+		private Date createdDate;
+
+		public void set(String data, int type) throws ParseException {
+
+			if (data == null || data.isEmpty())
+				return;
+			
+			String[] splits = data.split("\t");
+			
+			if (splits.length != 4)
+				return;
+			
+			this.createdDate = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.name = splits[1];
+			this.endUser = splits[2];
+			this.value = splits[3];
+		}
+
+		public ObjectId get_id() {
+			return _id;
+		}
+		public String getName() {
+			return name;
+		}
+		public String getEndUser() {
+			return endUser;
+		}
+		public String getValue() {
+			return value;
+		}
+		public Date getCreatedDate() {
+			return createdDate;
+		}
+
+		@Override
+		public String toString() {
+			
+			return GSON.toJson(this);
+		}
+	}
+
+	
 	public static class Entitlement extends BasicDBObject {
 		
 		private ObjectId _id = new ObjectId();
@@ -526,7 +1933,7 @@ public class InsertDocumentApp {
 		private String type;
 		private String status;
 		private String productId;
-		private String startDate;
+		private Date startDate;
 
 		public void set(String data, int type) throws ParseException {
 
@@ -543,7 +1950,7 @@ public class InsertDocumentApp {
 			this.type = splits[2];
 			this.status = splits[3];
 			this.productId = splits[4];
-			this.startDate = splits[5];
+			this.startDate = StringUtil.isNullOrEmpty(splits[5]) || "-".equals(splits[5])? null : sFormat.parse(splits[5]);
 		}
 
 		public ObjectId get_id() {
@@ -564,7 +1971,7 @@ public class InsertDocumentApp {
 		public String getProductId() {
 			return productId;
 		}
-		public String getStartDate() {
+		public Date getStartDate() {
 			return startDate;
 		}
 
@@ -575,7 +1982,7 @@ public class InsertDocumentApp {
 		}
 	}
 	
-	public static class Invoices extends BasicDBObject {
+	public static class Invoice extends BasicDBObject {
 		
 		private ObjectId _id = new ObjectId();
 		private String state;
@@ -584,8 +1991,8 @@ public class InsertDocumentApp {
 		private String vat;
 		private Long total;
 		private String currency;
-		private String paidDate;
-		private String created;
+		private Date paidDate;
+		private Date created;
 		
 		public void set(String data, int type) throws ParseException {
 
@@ -603,8 +2010,8 @@ public class InsertDocumentApp {
 			this.vat = splits[3];
 			this.total = StringUtil.isNullOrEmpty(splits[4])? null : Long.parseLong(splits[4]);
 			this.currency = splits[5];
-			this.paidDate = splits[6];
-			this.created = splits[7];
+			this.paidDate = StringUtil.isNullOrEmpty(splits[6]) || "-".equals(splits[6])? null : sFormat.parse(splits[6]);
+			this.created = StringUtil.isNullOrEmpty(splits[7]) || "-".equals(splits[7])? null : sFormat.parse(splits[7]);
 		}
 		
 		public ObjectId get_id() {
@@ -628,10 +2035,10 @@ public class InsertDocumentApp {
 		public String getCurrency() {
 			return currency;
 		}
-		public String getPaidDate() {
+		public Date getPaidDate() {
 			return paidDate;
 		}
-		public String getCreated() {
+		public Date getCreated() {
 			return created;
 		}
 
@@ -651,9 +2058,9 @@ public class InsertDocumentApp {
 		private Long unitAmount;
 		private String currency;
 		private Integer quantity;
-		private String activated;
-		private String current_period_started_at;
-		private String current_period_ends_at;
+		private Date activated;
+		private Date current_period_started_at;
+		private Date current_period_ends_at;
 
 		public void set(String data, int type) throws ParseException {
 
@@ -671,9 +2078,9 @@ public class InsertDocumentApp {
 			this.unitAmount = StringUtil.isNullOrEmpty(splits[3])? null : Long.parseLong(splits[3]);
 			this.currency = splits[4];
 			this.quantity = StringUtil.isNullOrEmpty(splits[5])? null : Integer.parseInt(splits[5]);
-			this.activated = splits[6];
-			this.current_period_started_at = splits[7];
-			this.current_period_ends_at = splits[8];
+			this.activated = StringUtil.isNullOrEmpty(splits[6]) || "-".equals(splits[6])? null : sFormat.parse(splits[6]);
+			this.current_period_started_at = StringUtil.isNullOrEmpty(splits[7]) || "-".equals(splits[7])? null : sFormat.parse(splits[7]);
+			this.current_period_ends_at = StringUtil.isNullOrEmpty(splits[8]) || "-".equals(splits[8])? null : sFormat.parse(splits[8]);
 		}
 
 		public ObjectId get_id() {
@@ -697,13 +2104,13 @@ public class InsertDocumentApp {
 		public Integer getQuantity() {
 			return quantity;
 		}
-		public String getActivated() {
+		public Date getActivated() {
 			return activated;
 		}
-		public String getCurrent_period_started_at() {
+		public Date getCurrent_period_started_at() {
 			return current_period_started_at;
 		}
-		public String getCurrent_period_ends_at() {
+		public Date getCurrent_period_ends_at() {
 			return current_period_ends_at;
 		}
 
@@ -1155,961 +2562,7 @@ public class InsertDocumentApp {
 			return GSON.toJson(this);
 		}
 	}
-	
-	void insertTicketObject(String srcFile) throws Exception {
 
-		File sFile = new File(srcFile);
-		BufferedReader br = new BufferedReader(new FileReader(sFile));
-
-		String line = null;
-
-
-		LinkedHashSet<Ticket> list = null;
-		String acctId = null;
-		int totalRecords = 0;
-		int invalidRecords = 0;
-		while ((line = br.readLine()) != null) {
-			
-			if (line.contains("acctId"))
-				continue;
-
-			Ticket ticket = new Ticket();
-			ticket.set(line, 3);
-
-			acctId = ticket.getAcctId().toLowerCase();
-			list = acctTickets.get(acctId);
-			if (list == null) {
-				list = new LinkedHashSet<Ticket>();
-				acctTickets.put(acctId, list);
-			}
-			
-			ticket.put("_id", ticket._id);
-			ticket.put("bnaId", ticket.bnaId);
-			ticket.put("assignee", ticket.getAssignee());
-			ticket.put("status", ticket.getStatus());
-			ticket.put("subject", ticket.getSubject());
-			ticket.put("submitter", ticket.getSubmitter());
-			ticket.put("creator", ticket.getCreator());
-			ticket.put("created", ticket.getCreated());
-			ticket.put("updated", ticket.getUpdated());
-			ticket.put("resolvedDate", ticket.getResolvedDate());
-			ticket.put("dueDate", ticket.getDueDate());
-			ticket.put("resolved", ticket.isResolved());
-			ticket.put("channel", ticket.getChannel());
-			ticket.put("priority", ticket.getPriority());
-			ticket.put("description", ticket.getDescription());
-			
-			list.add(ticket);
-			
-			totalRecords++;
-		}
-
-		br.close();
-		
-		System.out.printf("account tickets %d with invalid scores %d\ttotal records %d\n", acctTickets.size(), invalidRecords, totalRecords);
-	}
-	
-	void insertOpportunityObject(String srcFile) throws Exception {
-
-		File sFile = new File(srcFile);
-		BufferedReader br = new BufferedReader(new FileReader(sFile));
-
-		String line = null;
-
-		LinkedHashSet<Opportunity> list = null;
-		String acctId = null;
-		int totalRecords = 0;
-		int invalidRecords = 0;
-		while ((line = br.readLine()) != null) {
-			
-			if (line.contains("mScore"))
-				continue;
-			totalRecords++;
-			
-			Opportunity oppty = new Opportunity();
-			oppty.set(line, CUSTOMER_TYPE.BNA_DEMO.ordinal());
-
-			acctId = oppty.getAcctId().toLowerCase();
-			list = acctOppties.get(acctId);
-			if (list == null) {
-				list = new LinkedHashSet<Opportunity>();
-				acctOppties.put(acctId, list);
-			}
-			
-			oppty.put("_id", oppty._id);
-			oppty.put("opptyId", oppty.getOpptyId());
-			oppty.put("name", oppty.getName());
-			if ("unknown".equals(oppty.getNextStep()) == false)
-				oppty.put("nextStep", oppty.getNextStep());
-			oppty.put("stage", oppty.getStage());
-			oppty.put("owner", oppty.getOwner());
-			oppty.put("probability", oppty.getProbability());
-			oppty.put("leadSource", oppty.getLeadSource());
-			oppty.put("externalService", oppty.getExternalService());
-			if ("unknown".equals(oppty.getExternalServiceId()) == false)
-				oppty.put("externalServiceId", oppty.getExternalServiceId());
-			oppty.put("amount", oppty.getAmount());
-			if ("cId".equals(oppty.getCampaignId()) == false)
-				oppty.put("campaignId", oppty.getCampaignId());
-			oppty.put("closeDate", oppty.getCloseDate());
-			if (oppty.getLastActivity() != null)
-				oppty.put("lastActivity", oppty.getLastActivity());
-			oppty.put("created", oppty.getCreated());
-			oppty.put("expectedRevenue", oppty.getExpectedRevenue());
-			oppty.put("forecastCategory", oppty.getForecastCategory());
-			oppty.put("closed", oppty.isClosed());
-//			oppty.put("deleted", oppty.isDeleted());
-			oppty.put("open", oppty.isOpen());
-			if ("unknown".equals(oppty.getDescription()) == false)
-				oppty.put("description", oppty.getDescription());
-			if (oppty.getProduct() != null && "unknown".equals(oppty.getProduct()) == false)
-				oppty.put("product", oppty.getProduct());
-			
-			list.add(oppty);
-		}
-
-		br.close();
-		
-		System.out.printf("account opportunities %d with invalid scores %d\ttotal scores %d\n", acctOppties.size(), invalidRecords, totalRecords);
-	}
-	
-	void insertGeneralAccountObject(String srcFile, int custType) throws Exception {
-
-		try {
-//			Mongo mongo = new Mongo(ipAddr, port);
-//			DB db = mongo.getDB(dbName);
-
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);	
-			}
-
-			// TODO:: no enduser info
-			DBCollection table = db.getCollection("endUser");
-			table.drop();
-			table = db.getCollection("endUser");
-			
-			table = db.getCollection("account");
-			table.drop();
-			table = db.getCollection("account");
-			
-			List<DBObject> feeds = new LinkedList<DBObject>();
-			int threshold = 1000;
-
-			ObjectId custId = null;
-			if (custType == CUSTOMER_TYPE.BRIGHTIDEA.ordinal())
-				custId = new ObjectId("5229f0663004e751ecdf8425");
-			else if (custType == CUSTOMER_TYPE.CLOUDPASSAGE.ordinal())	
-				custId = new ObjectId("5229f0663004e751ecdf8427");
-			else if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal())	
-				custId = new ObjectId("5229f0663004e751ecdf841c");
-			
-			File sFile = new File(srcFile);
-			BufferedReader br = new BufferedReader(new FileReader(sFile));
-			
-			String line = null;		
-			FirstLastEvent event = null;
-			
-			Set<String> acctSets = new HashSet<String>();
-			while (threshold > 0 && (line = br.readLine()) != null) {
-								
-				if (line.contains("acctId"))
-					continue;
-				
-				BasicDBObject mydbObject = new BasicDBObject();
-				BNAacct acct = new BNAacct(line, custType);
-				if (acctSets.contains(acct.getAcctId()))
-					continue;
-				else
-					acctSets.add(acct.getAcctId());
-				
-				threshold--;
-				mydbObject.put("customerId", custId);
-				mydbObject.put("_id", acct.get_id());
-				mydbObject.put("usageId", acct.getAcctId());
-				if (acct.getArr() != null)
-					mydbObject.put("arr", acct.getArr());
-				if (acct.getMrr() != null)
-					mydbObject.put("mrr", acct.getMrr());
-				if (acct.getCsmName() != null)
-					mydbObject.put("csmName", acct.getCsmName());
-				if (acct.getSalesLead() != null)
-					mydbObject.put("salesLead", acct.getSalesLead());
-				if (acct.getEndUserCount() != null)
-					mydbObject.put("endUserCount", acct.getEndUserCount());
-				if (acct.getLocation() != null)
-					mydbObject.put("location", acct.getLocation());
-				if (acct.getName() != null)
-					mydbObject.put("name", acct.getName());
-//				mydbObject.put("region", acct.getRegion());
-//				mydbObject.put("stage", acct.getStage());
-//				mydbObject.put("tier", acct.getTier());		
-//				mydbObject.put("supportLevel", acct.getSupportLevel());
-				if (acct.getIndustry() != null)
-					mydbObject.put("industry", acct.getIndustry());	
-				if (acct.getSegment() != null)
-					mydbObject.put("segment", acct.getSegment());	
-//				mydbObject.put("sicCode", acct.getSicCode());
-				if (acct.getContractedDT() != null)
-					mydbObject.put("contractDate", usageDateFormat.parse(acct.getContractedDT()));
-				if (acct.getRenewalDT() != null) // usageFullDateFormat
-					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageDateFormat.parse(acct.getRenewalDT()));
-				if (acct.getChurnDT() != null)
-					mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
-				if (acct.isChurn() != null)
-					mydbObject.put("churn", acct.isChurn());	
-				
-				if (acct == null || acct.getAcctId() == null) {
-					System.out.printf("no acct for data %s\n", line); 
-					continue;
-				}
-				
-				// TODO:: general case
-				event = AcctDates.get(acct.getAcctId().toLowerCase());
-				if (event == null) {
-					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-				}
-				if (event != null) {
-					String dateStr = event.getFirstDate();
-					mydbObject.put("firstEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
-					dateStr = event.getLastDate();
-					mydbObject.put("lastEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
-				}
-				
-				String acctId = acct.getAcctId().toLowerCase();
-				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
-				if (hscores == null || hscores.isEmpty()) {
-					System.out.printf("no hscore for account %s\n", acctId);
-				}
-				else
-					mydbObject.put("healthScores", hscores);
-				LinkedHashSet<Ticket> tickets = acctTickets.get(acctId);
-				if (tickets == null || tickets.isEmpty())
-					System.out.printf("no tickets for account %s\n", acctId);
-				else
-					mydbObject.put("tickets", tickets);
-				
-				if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
-					mydbObject.put("tickets", acctTickets.get("ticket"));
-					mydbObject.put("opportunities", acctOppties.get("oppty"));
-					mydbObject.put("entitlements", acctEntitlements.get("entitlement"));
-					mydbObject.put("subscritions", acctSubscriptions.get("subscrition"));
-					mydbObject.put("invoices", acctInvoices.get("invoice"));
-				
-				}
-				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
-								
-				feeds.add(mydbObject);
-				mydbObject = null;
-				
-				if (threshold == 0) {
-					table.insert(feeds);
-					threshold = 1000;
-					feeds.clear();
-					feeds = new LinkedList<DBObject>();
-				}
-			}
-			acctSets.clear();
-			acctSets = null;
-			
-			if (threshold > 0) {
-				table.insert(feeds);
-				feeds.clear();
-				feeds = null;
-			}
-			
-			br.close();
-
-		} catch (UnknownHostException e) {
-			e.printStackTrace(System.out);
-		} catch (MongoException e) {
-			e.printStackTrace(System.out);
-		} catch (IOException e) {
-			e.printStackTrace(System.out);
-		}
-	}
-
-	
-	void insertOpenAccountObject(String srcFile) throws Exception {
-
-		try {
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate("bnaadmin", "bluenose!".toCharArray());
-
-			DBCollection table = db.getCollection("account");
-			table.drop();
-			table = db.getCollection("account");
-			
-			List<DBObject> feeds = new LinkedList<DBObject>();
-			int threshold = 1000;
-			
-			File sFile = new File(srcFile);
-			BufferedReader br = new BufferedReader(new FileReader(sFile));
-			
-			ObjectId custId = new ObjectId("524c9ffbf7864895bdd8ee75");
-			
-			String line = null;
-			String[] splits = null;
-			while (threshold-- > 0 && (line = br.readLine()) != null) {
-
-				if (line.contains("acctId"))
-					continue;
-				
-				BasicDBObject mydbObject = new BasicDBObject();
-				
-				splits = line.split("\t");
-				if (splits == null || splits.length != OPEN_ACCT.values().length)
-					return;
-
-				String acctId = splits[OPEN_ACCT.acctId.ordinal()].trim().toLowerCase();
-				 
-				mydbObject.put("customerId", custId); // openVPN
-				mydbObject.put("_id", new ObjectId());
-				mydbObject.put("name", acctId);	
-				mydbObject.put("usageId", acctId);
-				mydbObject.put("totalBandwidth", splits[OPEN_ACCT.tBandwidth.ordinal()].trim());
-				double dVal = Double.parseDouble(splits[OPEN_ACCT.avgBandwidth.ordinal()].trim());
-				mydbObject.put("avgBandwidth", dFormat.format(dVal));
-				mydbObject.put("totalDuration", splits[OPEN_ACCT.tDuration.ordinal()].trim());
-				dVal = Double.parseDouble(splits[OPEN_ACCT.avgDuration.ordinal()].trim());
-				mydbObject.put("avgDuration", dFormat.format(dVal));
-				mydbObject.put("firstEvent", new Date(Long.parseLong((splits[OPEN_ACCT.firstEvent.ordinal()].trim())) * 1000));
-				mydbObject.put("lastEvent", new Date(Long.parseLong((splits[OPEN_ACCT.lastEvent.ordinal()].trim()))* 1000));
-				dVal = Double.parseDouble(splits[OPEN_ACCT.livetime.ordinal()].trim());
-				Long iVal = Math.round(dVal); 
-				mydbObject.put("livetime", iVal);
-				mydbObject.put("healthScores", acctsHScores.get(acctId));
-				
-				feeds.add(mydbObject);
-				mydbObject = null;
-				
-				if (threshold == 0) {
-					table.insert(feeds);
-					threshold = 1000;
-					feeds.clear();
-					feeds = new LinkedList<DBObject>();
-				}
-			}
-			if (threshold > 0) {
-				table.insert(feeds);
-				feeds.clear();
-				feeds = null;
-			}
-			
-			br.close();
-
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (MongoException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-	}
-	
-	
-	void insertBNAaccountObject(String srcFile, String custIdStr) throws Exception {
-
-		try {
-			Mongo mongo = new Mongo(ipAddr, port);
-			DB db = mongo.getDB(dbName);
-
-//			MongoClient mongoClient = new MongoClient(ipAddr, port);
-//			DB db = mongoClient.getDB(dbName);
-//			boolean auth = db.authenticate(username, password.toCharArray());
-//			if (!auth) {
-//				System.out.println("authentication error!");
-//				System.exit(1);
-//			}
-
-			DBCollection table = db.getCollection("account");
-			table.drop();
-			table = db.getCollection("account");
-			
-			List<DBObject> feeds = new LinkedList<DBObject>();
-			int threshold = 1000;
-
-			ObjectId custId = new ObjectId(custIdStr);
-			
-			File sFile = new File(srcFile);
-			BufferedReader br = new BufferedReader(new FileReader(sFile));
-			
-			String line = null;		
-			FirstLastEvent event = null;
-			LinkedHashSet<Finance> mrrList = null;
-			Finance mrrObj = null;
-			
-			while (threshold > 0 && (line = br.readLine()) != null) {
-			
-				mrrObj = new Finance();
-				String[] splits = line.split(CommonTokens.TAB_DELIMITER);
-				mrrObj.setCreated(usageFullDateFormat.parse(splits[RELICON_ACCT.eventdt.ordinal()]));
-				mrrObj.setValue((long)(Double.parseDouble(splits[RELICON_ACCT.mrr.ordinal()]) * 100));
-
-				mrrObj.put("_id", mrrObj._id);
-				mrrObj.put("created", mrrObj.created);
-				mrrObj.put("value", mrrObj.value);
-				mrrObj.put("currency", mrrObj.currency);
-				mrrObj.put("unit", mrrObj.unit);
-				
-				mrrList = acctFinances.get(splits[RELICON_ACCT.acctId.ordinal()]);
-				if (mrrList == null) {
-					mrrList = new LinkedHashSet<Finance>();
-					acctFinances.put(splits[RELICON_ACCT.acctId.ordinal()].trim().toLowerCase(), mrrList);
-				}
-				
-				mrrList.add(mrrObj);
-			}
-			
-			br.close();
-			
-			br = new BufferedReader(new FileReader(sFile));
-			
-			Set<String> acctSets = new HashSet<String>();
-			while (threshold > 0 && (line = br.readLine()) != null) {
-								
-				BasicDBObject mydbObject = new BasicDBObject();
-				BNAacct acct = new BNAacct(line, 2);
-				if (acctSets.contains(acct.getAcctId()))
-					continue;
-				else
-					acctSets.add(acct.getAcctId());
-				
-				threshold--;
-				mydbObject.put("customerId", custId);
-				mydbObject.put("_id", acct.get_id());
-				mydbObject.put("usageId", acct.getAcctId());
-//				mydbObject.put("arr", acct.getArr());
-				mydbObject.put("mrr", acct.getMrr());
-//				mydbObject.put("csmName", acct.getCsmName());
-//				mydbObject.put("salesLead", acct.getSalesLead());
-//				mydbObject.put("endUserCount", acct.getEndUserCount());
-//				mydbObject.put("location", acct.getLocation());
-				mydbObject.put("name", acct.getName());
-//				mydbObject.put("region", acct.getRegion());
-//				mydbObject.put("stage", acct.getStage());
-//				mydbObject.put("tier", acct.getTier());		
-//				mydbObject.put("supportLevel", acct.getSupportLevel());
-//				mydbObject.put("industry", acct.getIndustry());		
-				mydbObject.put("churn", acct.isChurn());	
-				if (acct == null || acct.getAcctId() == null) {
-					System.out.printf("no acct for data %s\n", line); 
-					continue;
-				}
-
-				// TODO:: general case
-				event = AcctDates.get(acct.getAcctId().toLowerCase());
-				if (event == null) {
-					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-				}
-				if (event != null) {
-					mydbObject.put("firstEvent", usageMonthFormat.parse(event.getFirstDate()));
-					mydbObject.put("lastEvent", usageMonthFormat.parse(event.getLastDate()));
-				}
-//				AcctDates dates = ChurnRenewalDates.get(acct.getAcctId());
-//				if (dates == null) { 
-//					dates = new AcctDates(null, null, null);
-//					System.out.printf("no churn dates for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-//				}
-//				mydbObject.put("contractDate", dates.getStartDate());	
-//				mydbObject.put("renewalDate", dates.getRenewalDate());
-//				mydbObject.put("churnDate", dates.getChurnDate());
-				// TODO:: for Replicon only
-				mydbObject.put("contractDate", usageFullDateFormat.parse(acct.getContractedDT()));	
-				mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageFullDateFormat.parse(acct.getRenewalDT()));
-				mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
-				
-				String acctId = acct.getAcctId().toLowerCase();
-				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
-				if (hscores == null) {
-					System.out.printf("no hscore for account %s\n", acctId);
-				}
-				mydbObject.put("healthScores", hscores);
-//				mydbObject.put("accountOpportunity", acctOppties.get(acctId));
-				mrrList = acctFinances.get(acctId);
-				mydbObject.put("mrrList", mrrList);
-				
-				AcctMappping.put(acct.getAcctId().toLowerCase(), acct.get_id().toString());
-								
-				feeds.add(mydbObject);
-				mydbObject = null;
-				
-				if (threshold == 0) {
-					table.insert(feeds);
-					threshold = 1000;
-					feeds.clear();
-					feeds = new LinkedList<DBObject>();
-				}
-			}
-			acctSets.clear();
-			acctSets = null;
-			
-			if (threshold > 0) {
-				table.insert(feeds);
-				feeds.clear();
-				feeds = null;
-			}
-			
-			br.close();
-
-		} catch (UnknownHostException e) {
-			e.printStackTrace(System.out);
-		} catch (MongoException e) {
-			e.printStackTrace(System.out);
-		} catch (IOException e) {
-			e.printStackTrace(System.out);
-		}
-	}
-
-	public static void main(String[] args) throws IOException  {
-		
-//		File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
-//		BufferedReader br = new BufferedReader(new FileReader(sFile));
-//		
-//		String line = null;
-//		
-//		while((line = br.readLine()) != null) {
-//			String[] splits = line.split("\t");
-//			
-//			if ("521093".equals(splits[0])) {
-//				
-//				
-//				System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
-//			}
-//		}
-//		
-//		br.close();
-
-//		System.out.println(_idGenerator);
-		InsertDocumentApp app = new InsertDocumentApp();
-		app.setup();
-		app.insertBNAdemo();
-//		app.insertBrightidea();
-//		app.insertCloudPassage();
-//		app.insertReplicon();
-		app.tearDown();
-		
-//		try {
-//			// mongodb://admin:password@localhost:27017/db
-////			MongoClient.connect(addr);
-//			
-//			MongoClient mongoClient = new MongoClient(ipAddr, port);
-//			DB db = mongoClient.getDB("bow-openvpn");
-//			boolean auth = db.authenticate(username, password.toCharArray());
-//			if (!auth) {
-//				System.out.println("authentication error!");
-//				System.exit(1);
-//			}
-//			
-//			DBCollection collection = db.getCollection("account");
-//			collection.drop();
-//			collection = db.getCollection("account");
-//
-//			InsertDocumentApp app = new InsertDocumentApp();
-//			app.setup();
-//			app.insertOpenVPN();
-//			app.tearDown();
-//			
-////			// 2. BasicDBObjectBuilder example
-////			System.out.println("BasicDBObjectBuilder example...");
-////			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
-////					.add("database", "bow").add("table", "account");
-////
-////			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
-////					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
-////					.add("index", "vps_index1").add("active", "true");
-////
-////			documentBuilder.add("detail", documentBuilderDetail.get());
-////
-////			collection.insert(documentBuilder.get());
-////
-////			DBCursor cursorDocBuilder = collection.find();
-////			while (cursorDocBuilder.hasNext()) {
-////				System.out.println(cursorDocBuilder.next());
-////			}
-////
-////			collection.remove(new BasicDBObject());
-//			
-////			
-////			// 3. Map example
-////			System.out.println("Map example...");
-////			Map<String, Object> documentMap = new HashMap<String, Object>();
-////			documentMap.put("database", "bow");
-////			documentMap.put("table", "hosting");
-////
-////			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
-////			documentMapDetail.put("records", "99");
-////			documentMapDetail.put("index", "vps_index1");
-////			documentMapDetail.put("active", "true");
-////
-////			documentMap.put("detail", documentMapDetail);
-////
-////			collection.insert(new BasicDBObject(documentMap));
-////
-////			DBCursor cursorDocMap = collection.find();
-////			while (cursorDocMap.hasNext()) {
-////				System.out.println(cursorDocMap.next());
-////			}
-////
-////			collection.remove(new BasicDBObject());
-//
-//		} catch(Throwable ex) {
-//			ex.printStackTrace(System.out);
-//		}
-	}
-		
-	static void loadAcctEvents(String acctDates) throws IOException {
-
-		File sFile = new File(acctDates);
-		BufferedReader br = new BufferedReader(new FileReader(sFile));
-		
-		String line = null;
-		String[] splits = null; 
-		
-		while ((line = br.readLine()) != null) {
-			if (line.contains("acctId"))
-				continue;
-			
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			AcctDates.put(splits[2].toLowerCase(), event);
-		}
-		
-		br.close();
-	}
-	
-	void loadEvents(int custType) throws IOException, ParseException {
-
-		String acctDates = null;
-		String userDates = null;
-		String churnDates = null;
-		String subscriptions = null;
-		String tickets = null;
-		String entitlements = null;
-		String invoices = null;
-		String opportunities = null;
-		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
-			acctDates = "/Users/borongzhou/test/fake/product/acctFirstLastDate.tsv";
-			userDates = "/Users/borongzhou/test/fake/product/userFirstLastDate.tsv";
-			churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
-			subscriptions = "/Users/borongzhou/test/fake/product/subscription.tsv";
-			tickets = "/Users/borongzhou/test/fake/product/tickets.tsv";
-			entitlements = "/Users/borongzhou/test/fake/product/entitlement.tsv";
-			invoices = "/Users/borongzhou/test/fake/product/invoices.tsv";
-			opportunities = "/Users/borongzhou/test/fake/product/oppty.tsv";
-		}
-		else if (custType == CUSTOMER_TYPE.REPLICON.ordinal()) {
-			acctDates = "/Users/borongzhou/test/replicon/product/acctFirstLastDate.tsv";
-			userDates = "/Users/borongzhou/test/replicon/product/userFirstLastDate.tsv";
-//			churnDates = "/Users/borongzhou/test/replicon/product/acctDates.tsv";
-		}
-		
-			
-		File sFile = new File(acctDates);
-		BufferedReader br = new BufferedReader(new FileReader(sFile));
-		
-		String line = null;
-		String[] splits = null; 
-		
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			AcctDates.put(splits[2].toLowerCase(), event);
-		}
-		
-		br.close();
-		
-		sFile = new File(userDates);
-		br = new BufferedReader(new FileReader(sFile));
-		
-		line = null;
-		splits = null; 
-		
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			UserDates.put(splits[2] + "\t" + splits[3], event);
-		}
-		
-		br.close();
-		
-		// acctId, startDate, renewalDate, churnDate
-		// TODO:: for BNA demo only???
-		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
-			sFile = new File(churnDates);
-			br = new BufferedReader(new FileReader(sFile));
-
-			line = null;
-			splits = null;
-			while ((line = br.readLine()) != null) {
-				splits = line.split("\t");
-				if (splits.length != 4) {
-					System.out.printf("invalid record: %s\n", line);
-					continue;
-				}
-
-				AcctDates event = new AcctDates(splits[1],
-						"-9999".equals(splits[2]) ? null : splits[2],
-						"-9999".equals(splits[3]) ? null : splits[3]);
-				ChurnRenewalDates.put(splits[0], event);
-			}
-			br.close();
-			
-			sFile = new File(subscriptions);
-			br = new BufferedReader(new FileReader(sFile));
-
-			line = br.readLine();
-			LinkedHashSet<Subscription> sList = null;
-			while ((line = br.readLine()) != null) {
-				Subscription myObj = new Subscription();
-				myObj.set(line, custType);
-				sList = acctSubscriptions.get("subscrition");
-				if (sList == null) {
-					sList = new LinkedHashSet<Subscription>();
-					acctSubscriptions.put("subscrition", sList);
-				}
-				
-				myObj.put("_id", myObj._id);
-				myObj.put("activated", myObj.getActivated());
-				myObj.put("currency", myObj.getCurrency());
-				myObj.put("current_period_ends_at", myObj.getCurrent_period_ends_at());
-				myObj.put("current_period_started_at", myObj.getCurrent_period_started_at());
-				myObj.put("name", myObj.getName());
-				myObj.put("quantity", myObj.getQuantity());
-				myObj.put("state", myObj.getState());
-				
-				sList.add(myObj);
-			}
-			
-			br.close();
-			
-			sFile = new File(entitlements);
-			br = new BufferedReader(new FileReader(sFile));
-
-			line = br.readLine();
-			LinkedHashSet<Entitlement> eList = null;
-			while ((line = br.readLine()) != null) {
-				Entitlement myObj = new Entitlement();
-				myObj.set(line, custType);
-				eList = acctEntitlements.get("entitlement");
-				if (eList == null) {
-					eList = new LinkedHashSet<Entitlement>();
-					acctEntitlements.put("entitlement", eList);
-				}
-				
-				myObj.put("_id", myObj._id);
-				myObj.put("description", myObj.getDescription());
-				myObj.put("name", myObj.getName());
-				myObj.put("productId", myObj.getProductId());
-				myObj.put("startDate", myObj.getStartDate());
-				myObj.put("status", myObj.getStatus());
-				myObj.put("type", myObj.getType());
-				
-				eList.add(myObj);
-			}
-			
-			br.close();
-
-			sFile = new File(invoices);
-			br = new BufferedReader(new FileReader(sFile));
-
-			line = br.readLine();
-			LinkedHashSet<Invoices> iList = null;
-			while ((line = br.readLine()) != null) {
-				Invoices myObj = new Invoices();
-				myObj.set(line, custType);
-				iList = acctInvoices.get("invoice");
-				if (iList == null) {
-					iList = new LinkedHashSet<Invoices>();
-					acctInvoices.put("invoice", iList);
-				}
-				
-				myObj.put("_id", myObj._id);
-				myObj.put("created", myObj.getCreated());
-				myObj.put("currency", myObj.getCurrency());
-				myObj.put("paidDate", myObj.getPaidDate());
-				myObj.put("poNumber", myObj.getPoNumber());
-				myObj.put("state", myObj.getState());
-				myObj.put("total", myObj.getTotal());
-				
-				iList.add(myObj);
-			}
-			
-			br.close();
-
-			sFile = new File(tickets);
-			br = new BufferedReader(new FileReader(sFile));
-
-			line = br.readLine();
-			LinkedHashSet<Ticket> tList = null;
-			while ((line = br.readLine()) != null) {
-				Ticket myObj = new Ticket();
-				myObj.set(line, custType);
-				tList = acctTickets.get("ticket");
-				if (tList == null) {
-					tList = new LinkedHashSet<Ticket>();
-					acctTickets.put("ticket", tList);
-				}
-				
-				myObj.put("_id", myObj._id);
-				myObj.put("created", myObj.getCreated());
-				myObj.put("status", myObj.getStatus());
-				myObj.put("subject", myObj.getSubject());
-				myObj.put("priority", myObj.getPriority());
-				myObj.put("assignee", myObj.getAssignee());
-				myObj.put("resolvedDate", myObj.getResolvedDate());
-				
-				tList.add(myObj);
-			}
-			
-			br.close();
-			sFile = new File(opportunities);
-			br = new BufferedReader(new FileReader(sFile));
-
-			line = br.readLine();
-			LinkedHashSet<Opportunity> pList = null;
-			while ((line = br.readLine()) != null) {
-				Opportunity myObj = new Opportunity();
-				myObj.set(line, custType);
-				pList = acctOppties.get("oppty");
-				if (pList == null) {
-					pList = new LinkedHashSet<Opportunity>();
-					acctOppties.put("oppty", pList);
-				}
-				
-				myObj.put("_id", myObj._id);
-				myObj.put("name", myObj.getName());
-				myObj.put("stage", myObj.getStage());
-				myObj.put("probability", myObj.getProbability());
-				myObj.put("amount", myObj.getAmount());
-				myObj.put("expectedRevenue", myObj.getExpectedRevenue());
-				myObj.put("closeDate", myObj.getCloseDate());
-				
-				pList.add(myObj);
-			}
-			
-			br.close();
-		}
-	}
-
-	void insertBNAenduserObject(String srcFile) throws Exception {
-
-		try {
-//			Mongo mongo = new Mongo(ipAddr, port);
-//			DB db = mongo.getDB(dbName);
-
-			MongoClient mongoClient = new MongoClient(ipAddr, port);
-			DB db = mongoClient.getDB(dbName);
-			boolean auth = db.authenticate(username, password.toCharArray());
-			if (!auth) {
-				System.out.println("authentication error!");
-				System.exit(1);
-			}
-			
-			DBCollection table = db.getCollection("endUser");
-			table.drop();
-			table = db.getCollection("endUser");
-			
-			List<DBObject> feeds = new LinkedList<DBObject>();
-			int threshold = 1000;
-			
-			File sFile = new File(srcFile); // "/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
-			BufferedReader br = new BufferedReader(new FileReader(sFile));
-			
-			String line = null;
-			
-//			while((line = br.readLine()) != null) {
-//				String[] splits = line.split("\t");
-//				
-//				if ("521093".equals(splits[0])) {	
-//					System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
-//				}
-//			}
-//			
-//			br.close();
-//			
-//			sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
-//			br = new BufferedReader(new FileReader(sFile));
-			
-			line = null;
-			int total = 0;
-			int invalid = 0;
-			FirstLastEvent event = null;
-			while ((line = br.readLine()) != null) {
-				
-				String[] splits = line.split("\t");
-				
-				if ("521093".equals(splits[0])) {
-					System.out.printf("inserting data for account %s\n", line);
-				}
-				BasicDBObject mydbObject = new BasicDBObject();
-				BNAendUser ensuser = new BNAendUser(line);
-
-				total++;
-				if (ensuser.getAccountId() == null) {
-					invalid++;
-					continue;
-				}
-				
-				mydbObject.put("_id", ensuser.get_id());
-				mydbObject.put("accountId", ensuser.getAccountId());
-				mydbObject.put("name", ensuser.getUserId());	
-				mydbObject.put("firstEvent", ensuser.getFirstDT() == null? null : usageMonthFormat.parse(ensuser.getFirstDT()));
-				mydbObject.put("lastEvent", ensuser.getLastDT() == null? null : usageMonthFormat.parse(ensuser.getLastDT()));
-				
-//				event = UserDates.get(ensuser.getUserId());
-//				if (event == null) {
-//					System.out.printf("no event for user: Name=%s\n", ensuser.getUserId());
-//					continue;
-//					
-//				}
-//				mydbObject.put("firstEvent", usageDateFormat.parse(event.getFirstDate()));
-//				mydbObject.put("lastEvent", usageDateFormat.parse(event.getLastDate()));
-				String userId = ensuser.getAcctId() + "-" + ensuser.getUserId();
-//				mydbObject.put("healthScores", usersHScores.get(userId.toLowerCase()));
-				
-				feeds.add(mydbObject);
-				mydbObject = null;
-				threshold--;
-				
-				if (threshold == 0) {
-					table.insert(feeds);
-					threshold = 1000;
-					feeds.clear();
-					feeds = new LinkedList<DBObject>();
-				}
-			}
-			if (threshold > 0 && feeds.isEmpty() == false) {
-				table.insert(feeds);
-				feeds.clear();
-				feeds = null;
-			}
-			
-			br.close();
-			
-			System.out.printf("Enduser, total=%d\tinvalid=%d\n ", total, invalid);
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (MongoException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-		
-	}
-	
-	String toJson(String line) throws Exception {
-		return new BNAacct(line, 0).toString();
-	}
-	
-	String toJson2(String line) throws Exception {
-		return new UsageCount(line).toString();
-	}
-	
 	public static class AcctDates {
 		
 		Date startDate = null;
@@ -2219,7 +2672,15 @@ public class InsertDocumentApp {
 		}
 
 	}
-		  
+	
+	public static class BNAcust {
+		private ObjectId _id = new ObjectId();
+
+		public ObjectId get_id() {
+			return _id;
+		}
+	}
+	
 	public static class BNAacct {
 		private ObjectId _id = null;
 		private String acctId = null;
