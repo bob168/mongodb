@@ -47,10 +47,10 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "localhost"; // "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "10.0.9.13"; //Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
-	private static final String dbName = "bow-5229f0663004e751ecdf841c"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
+	private static final String dbName = "bow-5229f0663004e751ecdf841c"; // "bow-5229f0663004e751ecdf841c"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
 	private static final String username = "bnaadmin";
 	private static final String password = "bluenose!";
 	
@@ -623,7 +623,7 @@ public class InsertDocumentApp {
 			ticket.put("created", ticket.getCreated());
 			ticket.put("updated", ticket.getUpdated());
 			ticket.put("resolvedDate", ticket.getResolvedDate());
-			ticket.put("dueDate", ticket.getDueDate());
+			ticket.put("dueDate", ticket.getDue());
 			ticket.put("resolved", ticket.isResolved());
 			ticket.put("channel", ticket.getChannel());
 			ticket.put("priority", ticket.getPriority());
@@ -832,7 +832,7 @@ public class InsertDocumentApp {
 					mydbObject.put("notes", acctNotes.get("note"));
 					mydbObject.put("surveys", acctSurveys.get("survey"));
 					mydbObject.put("campaigns", acctCampaigns.get("campaign"));
-					mydbObject.put("features", acctFeatureReqs.get("feature"));
+					mydbObject.put("featureRequests", acctFeatureReqs.get("feature"));
 					mydbObject.put("interactions", acctInteractions.get("interaction"));
 				
 				}
@@ -1484,7 +1484,7 @@ public class InsertDocumentApp {
 				
 				myObj.put("_id", myObj._id);
 				myObj.put("assignee", myObj.getAssignee());
-				myObj.put("createdDate", myObj.getCreatedDate());
+				myObj.put("created", myObj.getCreated());
 				myObj.put("status", myObj.getStatus());
 				myObj.put("subject", myObj.getSubject());
 				myObj.put("priority", myObj.getPriority());
@@ -1511,9 +1511,9 @@ public class InsertDocumentApp {
 				
 				myObj.put("_id", myObj._id);
 				myObj.put("date", myObj.getDate());
-				myObj.put("endUser", myObj.getEndUser());
+				myObj.put("endUserName", myObj.getEndUserName());
 				myObj.put("type", myObj.getType());
-				myObj.put("user", myObj.getUser());
+				myObj.put("creator", myObj.getCreator());
 				
 				intList.add(myObj);
 			}
@@ -1535,9 +1535,9 @@ public class InsertDocumentApp {
 				}
 				
 				myObj.put("_id", myObj._id);
-				myObj.put("date", myObj.getDate());
+				myObj.put("created", myObj.getCreated());
 				myObj.put("title", myObj.getTitle());
-				myObj.put("user", myObj.getUser());
+				myObj.put("creator", myObj.getCreator());
 				
 				nList.add(myObj);
 			}
@@ -1687,7 +1687,7 @@ public class InsertDocumentApp {
 
 	public static class FeatureReq extends BasicDBObject {
 		private ObjectId _id = new ObjectId();
-		private Date createdDate;
+		private Date created;
 		private String status;
 		private String subject;
 		private Integer priority;
@@ -1704,7 +1704,7 @@ public class InsertDocumentApp {
 			if (splits.length != 6)
 				return;
 			
-			this.createdDate = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.created = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
 			this.status = splits[1];
 			this.subject = splits[2];
 			this.priority = StringUtil.isNullOrEmpty(splits[3]) || "-".equals(splits[3])? null : Integer.parseInt(splits[3]);
@@ -1715,8 +1715,8 @@ public class InsertDocumentApp {
 		public ObjectId get_id() {
 			return _id;
 		}
-		public Date getCreatedDate() {
-			return createdDate;
+		public Date getCreated() {
+			return created;
 		}
 		public String getStatus() {
 			return status;
@@ -1745,9 +1745,9 @@ public class InsertDocumentApp {
 	public static class Interaction extends BasicDBObject {
 		private ObjectId _id = new ObjectId();
 		private Date date;
-		private String endUser;
+		private String endUserName;
 		private String type;
-		private String user;
+		private String creator;
 
 		public void set(String data, int type) throws ParseException {
 
@@ -1760,19 +1760,19 @@ public class InsertDocumentApp {
 				return;
 			
 			this.date = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
-			this.endUser = splits[1];
+			this.endUserName = splits[1];
 			this.type = splits[2];
-			this.user = splits[3];
+			this.creator = splits[3];
 		}
 
 		public ObjectId get_id() {
 			return _id;
 		}
-		public String getUser() {
-			return user;
+		public String getCreator() {
+			return creator;
 		}
-		public String getEndUser() {
-			return endUser;
+		public String getEndUserName() {
+			return endUserName;
 		}
 		public String getType() {
 			return type;
@@ -1791,9 +1791,9 @@ public class InsertDocumentApp {
 	
 	public static class Note extends BasicDBObject {
 		private ObjectId _id = new ObjectId();
-		private Date date;
+		private Date created;
 		private String title;
-		private String user;
+		private String creator;
 
 		public void set(String data, int type) throws ParseException {
 
@@ -1805,9 +1805,9 @@ public class InsertDocumentApp {
 			if (splits.length != 3)
 				return;
 			
-			this.date = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
+			this.created = StringUtil.isNullOrEmpty(splits[0]) || "-".equals(splits[0])? null : sFormat.parse(splits[0]);
 			this.title = splits[1];
-			this.user = splits[2];
+			this.creator = splits[2];
 		}
 
 		public ObjectId get_id() {
@@ -1816,11 +1816,11 @@ public class InsertDocumentApp {
 		public String getTitle() {
 			return title;
 		}
-		public String getUser() {
-			return user;
+		public String getCreator() {
+			return creator;
 		}
-		public Date getDate() {
-			return date;
+		public Date getCreated() {
+			return created;
 		}
 
 		@Override
@@ -1988,7 +1988,7 @@ public class InsertDocumentApp {
 		private String state;
 		private Integer invoiceNumber;
 		private Long poNumber;
-		private String vat;
+		private String vatNumber;
 		private Long total;
 		private String currency;
 		private Date paidDate;
@@ -2007,7 +2007,7 @@ public class InsertDocumentApp {
 			this.state = splits[0];
 			this.invoiceNumber = Integer.parseInt(splits[1]);
 			this.poNumber = StringUtil.isNullOrEmpty(splits[2])? null : Long.parseLong(splits[2]);
-			this.vat = splits[3];
+			this.vatNumber = splits[3];
 			this.total = StringUtil.isNullOrEmpty(splits[4])? null : Long.parseLong(splits[4]);
 			this.currency = splits[5];
 			this.paidDate = StringUtil.isNullOrEmpty(splits[6]) || "-".equals(splits[6])? null : sFormat.parse(splits[6]);
@@ -2026,8 +2026,8 @@ public class InsertDocumentApp {
 		public Long getPoNumber() {
 			return poNumber;
 		}
-		public String getVat() {
-			return vat;
+		public String getVatNumber() {
+			return vatNumber;
 		}
 		public Long getTotal() {
 			return total;
@@ -2136,7 +2136,7 @@ public class InsertDocumentApp {
 		private String submitter = null;
 		private String recipient = null;
 		private String assignee = null;
-		private Date dueDate = null;
+		private Date due = null;
 		private Date created = null;
 		private Date updated = null;
 		private String creator = null;  //requester
@@ -2193,7 +2193,7 @@ public class InsertDocumentApp {
 					this.resolvedDate = ticketDateFormat.parse(str);
 				str = splits[BRIGHT_TICKET.dueDT.ordinal()];
 				if (StringUtil.isNullOrEmpty(str) == false)
-					this.dueDate = ticketDateFormat.parse(str);
+					this.due = ticketDateFormat.parse(str);
 				this.resolved = Boolean.parseBoolean(splits[BRIGHT_TICKET.solved.ordinal()]);
 				this.channel = splits[BRIGHT_TICKET.channelid.ordinal()];
 				this.priority = splits[BRIGHT_TICKET.priorityId.ordinal()];
@@ -2244,8 +2244,8 @@ public class InsertDocumentApp {
 		public String getAssignee() {
 			return assignee;
 		}
-		public Date getDueDate() {
-			return dueDate;
+		public Date getDue() {
+			return due;
 		}
 		public Date getCreated() {
 			return created;
@@ -2408,7 +2408,6 @@ public class InsertDocumentApp {
 		public String getProbability() {
 			return probability;
 		}
-
 		public String getLeadSource() {
 			return leadSource;
 		}
@@ -2457,9 +2456,7 @@ public class InsertDocumentApp {
 
 		@Override
 		public String toString() {
-			
-			return this.opptyId;
-//			return new Gson().toJson(this);
+			return new Gson().toJson(this);
 		}
 	}
 	
@@ -2698,6 +2695,7 @@ public class InsertDocumentApp {
 		private String segment = null;
 		private String industry = null;
 		private String contractedDT = null;
+		private String created = null;
 		private String renewalDT = null;
 		private String churnDT = null;
 		private Boolean churn = null;
@@ -2845,6 +2843,9 @@ public class InsertDocumentApp {
 		}
 		public String getContractedDT() {
 			return contractedDT;
+		}
+		public String getCreated() {
+			return created;
 		}
 		public String getRenewalDT() {
 			return renewalDT;
