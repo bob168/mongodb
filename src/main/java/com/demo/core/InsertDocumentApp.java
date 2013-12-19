@@ -47,7 +47,7 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "10.0.9.15"; //Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "10.0.9.21"; // Haley-21, Curtls-23, Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
 	private static final String dbName = "bow-5229f0663004e751ecdf841c"; //demo "bow-5229f0663004e751ecdf841c"; //brightidea "bow-5229f0663004e751ecdf8425"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
@@ -83,6 +83,156 @@ public class InsertDocumentApp {
 
 	private static final Gson GSON = new Gson();
 
+	public static void main(String[] args) throws IOException  {
+		
+//		File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+//		BufferedReader br = new BufferedReader(new FileReader(sFile));
+//		
+//		String line = null;
+//		
+//		while((line = br.readLine()) != null) {
+//			String[] splits = line.split("\t");
+//			
+//			if ("521093".equals(splits[0])) {
+//				
+//				
+//				System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
+//			}
+//		}
+//		
+//		br.close();
+
+//		System.out.println(_idGenerator);
+		InsertDocumentApp app = new InsertDocumentApp();
+		app.setup();
+		app.insertBNAdemo();
+//		app.insertBrightidea();
+//		app.insertCloudPassage();
+//		app.insertReplicon();
+		app.tearDown();
+		
+//		try {
+//			// mongodb://admin:password@localhost:27017/db
+////			MongoClient.connect(addr);
+//			
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB("bow-openvpn");
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);
+//			}
+//			
+//			DBCollection collection = db.getCollection("account");
+//			collection.drop();
+//			collection = db.getCollection("account");
+//
+//			InsertDocumentApp app = new InsertDocumentApp();
+//			app.setup();
+//			app.insertOpenVPN();
+//			app.tearDown();
+//			
+////			// 2. BasicDBObjectBuilder example
+////			System.out.println("BasicDBObjectBuilder example...");
+////			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
+////					.add("database", "bow").add("table", "account");
+////
+////			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
+////					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
+////					.add("index", "vps_index1").add("active", "true");
+////
+////			documentBuilder.add("detail", documentBuilderDetail.get());
+////
+////			collection.insert(documentBuilder.get());
+////
+////			DBCursor cursorDocBuilder = collection.find();
+////			while (cursorDocBuilder.hasNext()) {
+////				System.out.println(cursorDocBuilder.next());
+////			}
+////
+////			collection.remove(new BasicDBObject());
+//			
+////			
+////			// 3. Map example
+////			System.out.println("Map example...");
+////			Map<String, Object> documentMap = new HashMap<String, Object>();
+////			documentMap.put("database", "bow");
+////			documentMap.put("table", "hosting");
+////
+////			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
+////			documentMapDetail.put("records", "99");
+////			documentMapDetail.put("index", "vps_index1");
+////			documentMapDetail.put("active", "true");
+////
+////			documentMap.put("detail", documentMapDetail);
+////
+////			collection.insert(new BasicDBObject(documentMap));
+////
+////			DBCursor cursorDocMap = collection.find();
+////			while (cursorDocMap.hasNext()) {
+////				System.out.println(cursorDocMap.next());
+////			}
+////
+////			collection.remove(new BasicDBObject());
+//
+//		} catch(Throwable ex) {
+//			ex.printStackTrace(System.out);
+//		}
+	}
+
+	@Test
+	public void retrieve() {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+			
+//			MongoClient mongoClient = new MongoClient(ipAddr, port);
+//			DB db = mongoClient.getDB(dbName);
+//			boolean auth = db.authenticate(username, password.toCharArray());
+//			if (!auth) {
+//				System.out.println("authentication error!");
+//				System.exit(1);	
+//			}
+			
+			DBCollection account = db.getCollection("account");
+			
+			BasicDBObject whereQuery = new BasicDBObject();
+//			whereQuery.put("name", "vamsi krishna"); 
+//			whereQuery.put("accountId", new ObjectId("52965ceaf7864ff1919df558")); 
+			whereQuery.put("name", "A. Schulman");
+			DBCursor cursor = account.find(whereQuery);
+
+			System.out.println(account.count());
+			
+			int count = 10;
+			while (count-- > 0 && cursor.hasNext()) {
+				System.out.println(cursor.next());
+			}
+			cursor.close();
+			
+			DBCollection user = db.getCollection("endUser");
+			whereQuery = new BasicDBObject();
+//			whereQuery.put("name", "mirion technologies inc");
+//			whereQuery.put("_id", new ObjectId("5255f58af786e6b83896681a"));
+			whereQuery.put("accountId", new ObjectId("52b33bc5300422091bce28d5"));
+			DBCursor cursorDoc = user.find(whereQuery);
+			count = 10;
+			while (count--> 0 && cursorDoc.hasNext()) {
+				System.out.println(cursorDoc.next());
+			}
+
+			System.out.println(user.count());
+			cursorDoc.close();
+			
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (MongoException e) {
+			e.printStackTrace();
+		}
+	}
+
+	
 //	@Test
 	public void insertOpenVPN()  {
 		
@@ -339,7 +489,7 @@ public class InsertDocumentApp {
 				Double percent75 = Double.parseDouble(splits[BNA_CHI_SCORE.percent75.ordinal()]);
 				Double myScore = Double.parseDouble(splits[BNA_CHI_SCORE.mscore.ordinal()]);
 				score.setScore(myScore.compareTo(percent15) < 0? 30 : (myScore.compareTo(percent75) < 0? 70 : 90));
-				score.setCreated(usageDashDateFormat.parse(splits[BNA_CHI_SCORE.month.ordinal()] + "-01"));
+				score.setCreated(usageDateFormat.parse(splits[BNA_CHI_SCORE.month.ordinal()].replaceAll("-", "") + "01"));
 				if ("880".equals(acctId)) {
 					int test = 0;
 				}
@@ -537,59 +687,6 @@ public class InsertDocumentApp {
 
 		System.out.printf("invalid records %d\ttotal records %d\n", invalidRecords, totalRecords);
 
-	}
-
-
-	@Test
-	public void retrieve() {
-
-		try {
-			Mongo mongo = new Mongo(ipAddr, port);
-			DB db = mongo.getDB(dbName);
-			
-//			MongoClient mongoClient = new MongoClient(ipAddr, port);
-//			DB db = mongoClient.getDB(dbName);
-//			boolean auth = db.authenticate(username, password.toCharArray());
-//			if (!auth) {
-//				System.out.println("authentication error!");
-//				System.exit(1);	
-//			}
-			
-			DBCollection account = db.getCollection("account");
-			
-			BasicDBObject whereQuery = new BasicDBObject();
-//			whereQuery.put("name", "vamsi krishna"); 
-//			whereQuery.put("accountId", new ObjectId("52965ceaf7864ff1919df558")); 
-//			whereQuery.put("name", "IDT");
-			DBCursor cursor = account.find(whereQuery);
-
-			System.out.println(account.count());
-			
-			int count = 10;
-			while (count-- > 0 && cursor.hasNext()) {
-				System.out.println(cursor.next());
-			}
-			cursor.close();
-			
-			DBCollection user = db.getCollection("endUser");
-			whereQuery = new BasicDBObject();
-//			whereQuery.put("name", "mirion technologies inc");
-//			whereQuery.put("_id", new ObjectId("5255f58af786e6b83896681a"));
-//			whereQuery.put("accountId", new ObjectId("52b1ddbb7830efa050480a30"));
-			DBCursor cursorDoc = user.find(whereQuery);
-			count = 10;
-			while (count--> 0 && cursorDoc.hasNext()) {
-				System.out.println(cursorDoc.next());
-			}
-
-			System.out.println(user.count());
-			cursorDoc.close();
-			
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (MongoException e) {
-			e.printStackTrace();
-		}
 	}
 	
 	void insertTicketObject(String srcFile) throws Exception {
@@ -790,11 +887,11 @@ public class InsertDocumentApp {
 					mydbObject.put("segment", acct.getSegment());	
 //				mydbObject.put("sicCode", acct.getSicCode());
 				if (acct.getContractedDT() != null)
-					mydbObject.put("contractDate", usageDateFormat.parse(acct.getContractedDT()));
+					mydbObject.put("contractDate", usageDateFormat.parse(acct.getContractedDT().replaceAll("-", "")));
 				if (acct.getRenewalDT() != null) // usageFullDateFormat
-					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageDateFormat.parse(acct.getRenewalDT()));
+					mydbObject.put("renewalDate", "-9999".equals(acct.getRenewalDT())? null : usageDateFormat.parse(acct.getRenewalDT().replaceAll("-", "")));
 				if (acct.getChurnDT() != null)
-					mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT()));
+					mydbObject.put("churnDate", "-9999".equals(acct.getChurnDT())? null : usageDateFormat.parse(acct.getChurnDT().replaceAll("-", "")));
 				if (acct.isChurn() != null)
 					mydbObject.put("churn", acct.isChurn());	
 				
@@ -803,10 +900,16 @@ public class InsertDocumentApp {
 					continue;
 				}
 
+				int a = 0;
+				if (acct.getName().endsWith("Schulman"))
+					a = -1;
+				
 				String dateStr = acct.getFirstDate();
-				mydbObject.put("firstEvent", dateStr == null || dateStr.equals("-9999")? null : usageDashDateFormat.parse(dateStr));
+				mydbObject.put("firstEvent", dateStr == null || dateStr.equals("-9999")? null : usageDateFormat.parse(dateStr.replaceAll("-", "")));
 				dateStr = acct.getLastDate();
-				mydbObject.put("lastEvent", dateStr == null || dateStr.equals("-9999")? null : usageDashDateFormat.parse(dateStr));
+				if (dateStr != null && acct.isChurn() && usageDateFormat.parse(dateStr.replaceAll("-", "")).after(usageDateFormat.parse(acct.getChurnDT().replaceAll("-", ""))))
+					dateStr = acct.getChurnDT().replaceAll("-", "");
+				mydbObject.put("lastEvent", dateStr == null || dateStr.equals("-9999")? null : usageDateFormat.parse(dateStr.replaceAll("-", "")));
 				
 				// TODO:: general case
 				event = AcctDates.get(acct.getAcctId().toLowerCase());
@@ -822,8 +925,17 @@ public class InsertDocumentApp {
 				if (hscores == null || hscores.isEmpty()) {
 					System.out.printf("no hscore for account %s\n", acctId);
 				}
-				else
-					mydbObject.put("healthScores", hscores);
+				else {
+					// TODO:: filter out all CHI score if the date passed churn date
+					LinkedHashSet<Health> modifiedScores = new LinkedHashSet<Health>();
+					
+					for (Health score : hscores) {
+						if (acct.isChurn() && score.getCreated().before(usageDateFormat.parse(acct.getChurnDT().replaceAll("-", ""))))
+							modifiedScores.add(score);
+					}
+					
+					mydbObject.put("healthScores", modifiedScores);
+				}
 				LinkedHashSet<Ticket> tickets = acctTickets.get(acctId);
 				if (tickets != null && tickets.isEmpty() == false)
 					mydbObject.put("tickets", tickets);
@@ -1106,104 +1218,7 @@ public class InsertDocumentApp {
 			e.printStackTrace(System.out);
 		}
 	}
-
-	public static void main(String[] args) throws IOException  {
-		
-//		File sFile = new File("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
-//		BufferedReader br = new BufferedReader(new FileReader(sFile));
-//		
-//		String line = null;
-//		
-//		while((line = br.readLine()) != null) {
-//			String[] splits = line.split("\t");
-//			
-//			if ("521093".equals(splits[0])) {
-//				
-//				
-//				System.out.printf("there is the data %s for 521093 with fist=%s\t2nd=%s\n", line,splits[0],splits[1]);
-//			}
-//		}
-//		
-//		br.close();
-
-//		System.out.println(_idGenerator);
-		InsertDocumentApp app = new InsertDocumentApp();
-		app.setup();
-		app.insertBNAdemo();
-//		app.insertBrightidea();
-//		app.insertCloudPassage();
-//		app.insertReplicon();
-		app.tearDown();
-		
-//		try {
-//			// mongodb://admin:password@localhost:27017/db
-////			MongoClient.connect(addr);
-//			
-//			MongoClient mongoClient = new MongoClient(ipAddr, port);
-//			DB db = mongoClient.getDB("bow-openvpn");
-//			boolean auth = db.authenticate(username, password.toCharArray());
-//			if (!auth) {
-//				System.out.println("authentication error!");
-//				System.exit(1);
-//			}
-//			
-//			DBCollection collection = db.getCollection("account");
-//			collection.drop();
-//			collection = db.getCollection("account");
-//
-//			InsertDocumentApp app = new InsertDocumentApp();
-//			app.setup();
-//			app.insertOpenVPN();
-//			app.tearDown();
-//			
-////			// 2. BasicDBObjectBuilder example
-////			System.out.println("BasicDBObjectBuilder example...");
-////			BasicDBObjectBuilder documentBuilder = BasicDBObjectBuilder.start()
-////					.add("database", "bow").add("table", "account");
-////
-////			BasicDBObjectBuilder documentBuilderDetail = BasicDBObjectBuilder
-////					.start().add("_id", new ObjectId("5229f0663004e751ecdf841c")).add("records", "99")
-////					.add("index", "vps_index1").add("active", "true");
-////
-////			documentBuilder.add("detail", documentBuilderDetail.get());
-////
-////			collection.insert(documentBuilder.get());
-////
-////			DBCursor cursorDocBuilder = collection.find();
-////			while (cursorDocBuilder.hasNext()) {
-////				System.out.println(cursorDocBuilder.next());
-////			}
-////
-////			collection.remove(new BasicDBObject());
-//			
-////			
-////			// 3. Map example
-////			System.out.println("Map example...");
-////			Map<String, Object> documentMap = new HashMap<String, Object>();
-////			documentMap.put("database", "bow");
-////			documentMap.put("table", "hosting");
-////
-////			Map<String, Object> documentMapDetail = new HashMap<String, Object>();
-////			documentMapDetail.put("records", "99");
-////			documentMapDetail.put("index", "vps_index1");
-////			documentMapDetail.put("active", "true");
-////
-////			documentMap.put("detail", documentMapDetail);
-////
-////			collection.insert(new BasicDBObject(documentMap));
-////
-////			DBCursor cursorDocMap = collection.find();
-////			while (cursorDocMap.hasNext()) {
-////				System.out.println(cursorDocMap.next());
-////			}
-////
-////			collection.remove(new BasicDBObject());
-//
-//		} catch(Throwable ex) {
-//			ex.printStackTrace(System.out);
-//		}
-	}
-		
+	
 	static void loadAcctEvents(String acctDates) throws IOException {
 
 		File sFile = new File(acctDates);
