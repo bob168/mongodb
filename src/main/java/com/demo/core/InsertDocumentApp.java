@@ -47,10 +47,10 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "10.0.9.13"; //Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "10.0.9.15"; //Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
-	private static final String dbName = "bow-5229f0663004e751ecdf841c"; // "bow-5229f0663004e751ecdf841c"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
+	private static final String dbName = "bow-5229f0663004e751ecdf841c"; //demo "bow-5229f0663004e751ecdf841c"; //brightidea "bow-5229f0663004e751ecdf8425"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
 	private static final String username = "bnaadmin";
 	private static final String password = "bluenose!";
 	
@@ -74,6 +74,7 @@ public class InsertDocumentApp {
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
 	private static DecimalFormat dFormat = new DecimalFormat("################.##");
 	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyyMMdd"); //"yyyy-MM-dd hh:mm:ss.SSS");
+	private static SimpleDateFormat usageDashDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 	private static SimpleDateFormat usageMonthFormat = new SimpleDateFormat("yyyyMM"); //"yyyy-MM-dd hh:mm:ss.SSS");
 	private static SimpleDateFormat usageFullDateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
 	private static SimpleDateFormat usageHourFormat = new SimpleDateFormat("yyyyMMdd hh");
@@ -106,7 +107,7 @@ public class InsertDocumentApp {
 			acctsHScores = null;
 		
 //			insertUserHealthScore("/Users/borongzhou/test/fake/product/endUserHealthScoreExt.tsv");
-			insertBNAenduserObject("/Users/borongzhou/test/fake/product/endUserFromUsage.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/fake/product/endUserFromUsage.tsv", CUSTOMER_TYPE.BNA_DEMO.ordinal());
 			
 			usersHScores.clear();
 			usersHScores = null;
@@ -156,7 +157,7 @@ public class InsertDocumentApp {
 //			acctOppties = null;
 		
 			insertUserHealthScore("/Users/borongzhou/test/replicon/product/endUserHealthScoreExt.tsv");
-			insertBNAenduserObject("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv");
+			insertBNAenduserObject("/Users/borongzhou/test/replicon/product/endUserFromUsage.tsv", 0);
 			
 			usersHScores.clear();
 			usersHScores = null;
@@ -178,12 +179,12 @@ public class InsertDocumentApp {
 			// set customer object
 			DBCollection table = db.getCollection("customer");
 			table.drop();
-//			table = db.getCollection("customer");
-//			
-//			BasicDBObject mydbObject = new BasicDBObject();
-//			mydbObject.put("_id", dbName.replaceFirst("bow-", ""));
-//			
-//			table.insert(mydbObject);
+			table = db.getCollection("customer");
+			
+			BasicDBObject mydbObject = new BasicDBObject();
+			mydbObject.put("_id", dbName.replaceFirst("bow-", ""));
+			
+			table.insert(mydbObject);
 			
 		} catch (UnknownHostException e) {
 			e.printStackTrace();
@@ -313,7 +314,7 @@ public class InsertDocumentApp {
 
 			acctId = splits[3].toLowerCase().trim();
 			if (type == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
-				acctId = splits[1].toLowerCase().trim();
+				acctId = splits[BNA_CHI_SCORE.acctid.ordinal()].toLowerCase().trim();
 			}
 			
 			list = acctsHScores.get(acctId);
@@ -334,9 +335,14 @@ public class InsertDocumentApp {
 				score.setCreated(usageDateFormat.parse(splits[2] + "01"));
 			}
 			else if (type == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
-				int myScore = (int)Math.round(Double.parseDouble(splits[0]));
-				score.setScore(myScore);
-				score.setCreated(usageDateFormat.parse(splits[3] + "01"));
+				Double percent15 = Double.parseDouble(splits[BNA_CHI_SCORE.percent15.ordinal()]);
+				Double percent75 = Double.parseDouble(splits[BNA_CHI_SCORE.percent75.ordinal()]);
+				Double myScore = Double.parseDouble(splits[BNA_CHI_SCORE.mscore.ordinal()]);
+				score.setScore(myScore.compareTo(percent15) < 0? 30 : (myScore.compareTo(percent75) < 0? 70 : 90));
+				score.setCreated(usageDashDateFormat.parse(splits[BNA_CHI_SCORE.month.ordinal()] + "-01"));
+				if ("880".equals(acctId)) {
+					int test = 0;
+				}
 			}
 			
 			score.put("_id", score._id);
@@ -554,7 +560,7 @@ public class InsertDocumentApp {
 			BasicDBObject whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "vamsi krishna"); 
 //			whereQuery.put("accountId", new ObjectId("52965ceaf7864ff1919df558")); 
-//			whereQuery.put("name", "18-101512");
+//			whereQuery.put("name", "IDT");
 			DBCursor cursor = account.find(whereQuery);
 
 			System.out.println(account.count());
@@ -569,7 +575,7 @@ public class InsertDocumentApp {
 			whereQuery = new BasicDBObject();
 //			whereQuery.put("name", "mirion technologies inc");
 //			whereQuery.put("_id", new ObjectId("5255f58af786e6b83896681a"));
-//			whereQuery.put("usageId", "100130"); 
+//			whereQuery.put("accountId", new ObjectId("52b1ddbb7830efa050480a30"));
 			DBCursor cursorDoc = user.find(whereQuery);
 			count = 10;
 			while (count--> 0 && cursorDoc.hasNext()) {
@@ -796,17 +802,19 @@ public class InsertDocumentApp {
 					System.out.printf("no acct for data %s\n", line); 
 					continue;
 				}
+
+				String dateStr = acct.getFirstDate();
+				mydbObject.put("firstEvent", dateStr == null || dateStr.equals("-9999")? null : usageDashDateFormat.parse(dateStr));
+				dateStr = acct.getLastDate();
+				mydbObject.put("lastEvent", dateStr == null || dateStr.equals("-9999")? null : usageDashDateFormat.parse(dateStr));
 				
 				// TODO:: general case
 				event = AcctDates.get(acct.getAcctId().toLowerCase());
-				if (event == null) {
-					System.out.printf("no event for acct: ID=%s\tName=%s\n", acct.getAcctId(), acct.getAcctName());
-				}
 				if (event != null) {
-					String dateStr = event.getFirstDate();
-					mydbObject.put("firstEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
+					dateStr = event.getFirstDate();
+					mydbObject.put("firstEvent", dateStr == null || dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
 					dateStr = event.getLastDate();
-					mydbObject.put("lastEvent", dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
+					mydbObject.put("lastEvent", dateStr == null || dateStr.equals("-9999")? null : usageHourFormat.parse(dateStr));
 				}
 				
 				String acctId = acct.getAcctId().toLowerCase();
@@ -817,9 +825,7 @@ public class InsertDocumentApp {
 				else
 					mydbObject.put("healthScores", hscores);
 				LinkedHashSet<Ticket> tickets = acctTickets.get(acctId);
-				if (tickets == null || tickets.isEmpty())
-					System.out.printf("no tickets for account %s\n", acctId);
-				else
+				if (tickets != null && tickets.isEmpty() == false)
 					mydbObject.put("tickets", tickets);
 				
 				if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
@@ -1239,12 +1245,12 @@ public class InsertDocumentApp {
 			acctDates = "/Users/borongzhou/test/fake/product/acctFirstLastDate.tsv";
 			userDates = "/Users/borongzhou/test/fake/product/userFirstLastDate.tsv";
 			churnDates = "/Users/borongzhou/test/fake/product/acctDates.tsv";
+			
 			subscriptions = "/Users/borongzhou/test/fake/product/subscription.tsv";
 			tickets = "/Users/borongzhou/test/fake/product/tickets.tsv";
 			entitlements = "/Users/borongzhou/test/fake/product/entitlement.tsv";
 			invoices = "/Users/borongzhou/test/fake/product/invoices.tsv";
 			opportunities = "/Users/borongzhou/test/fake/product/oppty.tsv";
-
 			survey = "/Users/borongzhou/test/fake/product/survey.tsv";
 			campaigns = "/Users/borongzhou/test/fake/product/campaigns.tsv";
 			notes = "/Users/borongzhou/test/fake/product/notes.tsv";
@@ -1257,38 +1263,37 @@ public class InsertDocumentApp {
 //			churnDates = "/Users/borongzhou/test/replicon/product/acctDates.tsv";
 		}
 		
-			
-		File sFile = new File(acctDates);
-		BufferedReader br = new BufferedReader(new FileReader(sFile));
-		
+		File sFile = null;
+		BufferedReader br = null;
+
 		String line = null;
 		String[] splits = null; 
 		
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			AcctDates.put(splits[2].toLowerCase(), event);
-		}
-		
-		br.close();
-		
-		sFile = new File(userDates);
-		br = new BufferedReader(new FileReader(sFile));
-		
-		line = null;
-		splits = null; 
-		
-		while ((line = br.readLine()) != null) {
-			splits = line.split("\t");
-			FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
-			UserDates.put(splits[2] + "\t" + splits[3], event);
-		}
-		
-		br.close();
-		
-		// acctId, startDate, renewalDate, churnDate
-		// TODO:: for BNA demo only???
-		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+		if (custType != CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+			sFile = new File(acctDates);
+			br = new BufferedReader(new FileReader(sFile));
+			while ((line = br.readLine()) != null) {
+				splits = line.split("\t");
+				FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+				AcctDates.put(splits[2].toLowerCase(), event);
+			}
+
+			br.close();
+
+			sFile = new File(userDates);
+			br = new BufferedReader(new FileReader(sFile));
+
+			line = null;
+			splits = null;
+
+			while ((line = br.readLine()) != null) {
+				splits = line.split("\t");
+				FirstLastEvent event = new FirstLastEvent(splits[0], splits[1]);
+				UserDates.put(splits[2] + "\t" + splits[3], event);
+			}
+
+			br.close();
+
 			sFile = new File(churnDates);
 			br = new BufferedReader(new FileReader(sFile));
 
@@ -1307,7 +1312,11 @@ public class InsertDocumentApp {
 				ChurnRenewalDates.put(splits[0], event);
 			}
 			br.close();
-			
+		}
+		
+		// acctId, startDate, renewalDate, churnDate
+		// TODO:: for BNA demo only???
+		if (custType == CUSTOMER_TYPE.BNA_DEMO.ordinal()) {	
 			sFile = new File(subscriptions);
 			br = new BufferedReader(new FileReader(sFile));
 
@@ -1571,7 +1580,7 @@ public class InsertDocumentApp {
 		}
 	}
 
-	void insertBNAenduserObject(String srcFile) throws Exception {
+	void insertBNAenduserObject(String srcFile, int type) throws Exception {
 
 		try {
 			Mongo mongo = new Mongo(ipAddr, port);
@@ -1622,7 +1631,7 @@ public class InsertDocumentApp {
 					System.out.printf("inserting data for account %s\n", line);
 				}
 				BasicDBObject mydbObject = new BasicDBObject();
-				BNAendUser ensuser = new BNAendUser(line);
+				BNAendUser ensuser = new BNAendUser(line, type);
 
 				total++;
 				if (ensuser.getAccountId() == null) {
@@ -2619,33 +2628,52 @@ public class InsertDocumentApp {
 		private String firstDT = null;
 		private String lastDT = null;
 		
-		public BNAendUser(String data) {
+		public BNAendUser(String data, int type) {
 			if (data == null || data.isEmpty())
 				return;
 			
 			String[] splits = data.split("\t");
-			if (splits.length != 2)
-				return;
 			
-			this.userId = splits[1];
-			this._id = new ObjectId();
+			if (type != CUSTOMER_TYPE.BNA_DEMO.ordinal()) {
+				if (splits.length != 2)
+					return;
 
-			String acctId = splits[0].toLowerCase().trim();
-			this.acctId = acctId;
-			if ("521093".equals(acctId))
+				this.userId = splits[1];
+
+				String acctId = splits[0].toLowerCase().trim();
+				this.acctId = acctId;
+				if ("521093".equals(acctId))
 					System.out.printf("inserting enduser %s\n", data);
-			
-			if (AcctMappping.get(acctId) == null) {
-				System.out.println("no objectId for " + acctId);
+
+				if (AcctMappping.get(acctId) == null) {
+					System.out.println("no objectId for " + acctId);
+				} else
+					this.accountId = new ObjectId(AcctMappping.get(acctId));
+
+				FirstLastEvent dates = UserDates.get(splits[0] + "\t"
+						+ splits[1]);
+				if (dates == null)
+					System.out.printf("no dates for user %s\n", splits[0]
+							+ "\t" + splits[1]);
+				this.firstDT = (dates == null) ? null : dates.firstDate;
+				this.lastDT = (dates == null) ? null : dates.lastDate;
 			}
-			else
-				this.accountId = new ObjectId(AcctMappping.get(acctId));
-			
-			FirstLastEvent dates = UserDates.get(splits[0] + "\t" + splits[1]);
-			if (dates == null)
-				System.out.printf("no dates for user %s\n", splits[0] + "\t" + splits[1]);
-			this.firstDT = (dates == null)? null : dates.firstDate; // null point 100130	26-100130
-			this.lastDT = (dates == null)? null : dates.lastDate;
+			else {
+				if (splits.length != BNA_USAGE.values().length)
+					return;
+				
+				this.userId = splits[BNA_USAGE.username.ordinal()];
+				String acctId = splits[BNA_USAGE.acctid.ordinal()].toLowerCase().trim();
+				this.acctId = acctId;
+				if (AcctMappping.get(acctId) == null) {
+					System.out.println("no objectId for " + acctId);
+				}
+				else
+					this.accountId = new ObjectId(AcctMappping.get(acctId));
+				
+				this.firstDT = splits[BNA_USAGE.firstDate.ordinal()];
+				this.lastDT = splits[BNA_USAGE.firstDate.ordinal()];
+			}
 		}
 
 		public Object get_id() {
@@ -2706,6 +2734,8 @@ public class InsertDocumentApp {
 		private String sicCode = null;
 		private String m2m = "Y";
 		private String acctHealth = null;
+		private String firstDate = null;
+		private String lastDate = null;
 		
 		public BNAacct(String data, int type) throws ParseException, Exception {
 			if (data == null || data.isEmpty())
@@ -2769,6 +2799,12 @@ public class InsertDocumentApp {
 
 				this.acctId = splits[BNA_ACCT.acctId.ordinal()].trim();
 				this.acctName = splits[BNA_ACCT.acctName.ordinal()].trim();
+
+				if (acctName != null && acctName.startsWith("\""))
+					acctName = acctName.substring(1);
+				acctName = acctName != null && acctName.endsWith("\"")? acctName.substring(0, acctName.length() - 1) : acctName;
+				acctName = acctName != null && acctName.contains("\"\"")?acctName.replaceAll("\"\"", "'") : acctName;
+
 				this.csmName = splits[BNA_ACCT.csmName.ordinal()].trim();
 				this.salesLead = splits[BNA_ACCT.salesLead.ordinal()];
 				this.tier = splits[BNA_ACCT.tier.ordinal()];
@@ -2783,8 +2819,10 @@ public class InsertDocumentApp {
 				this.stage = splits[BNA_ACCT.stage.ordinal()];
 				this.contractedDT = splits[BNA_ACCT.contractedDT.ordinal()];
 				this.renewalDT = splits[BNA_ACCT.renewalDT.ordinal()];
-				this.churn = Boolean.parseBoolean(splits[BNA_ACCT.churn
-						.ordinal()]);
+				this.churnDT = splits[BNA_ACCT.churnDT.ordinal()];
+				this.churn = "-9999".equals(splits[BNA_ACCT.churnDT.ordinal()])? false : true;
+				this.firstDate = splits[BNA_ACCT.firstDT.ordinal()];
+				this.lastDate = splits[BNA_ACCT.lastDT.ordinal()];
 			}
 			
 			this._id = new ObjectId();
@@ -2861,6 +2899,12 @@ public class InsertDocumentApp {
 		}
 		public String getgORl() {
 			return gORl;
+		}
+		public String getFirstDate() {
+			return firstDate;
+		}
+		public String getLastDate() {
+			return lastDate;
 		}
 
 		@Override
@@ -2963,7 +3007,7 @@ public class InsertDocumentApp {
 		livetime     // TODO:: convert integer
 	}
 
-	static enum BNA_ACCT {
+	static enum BNA_ACCT_OLD {
 		  acctId,
 		  acctName,
 		  csmName,
@@ -2980,6 +3024,50 @@ public class InsertDocumentApp {
 		  churn
 	}
 	
+	static enum BNA_CHI_SCORE {
+		mscore,
+		percent15,
+		percent75,
+		acctid,
+		customerid,
+		month
+	}
+	
+	static enum BNA_USAGE {
+		firstDate,
+		lastDate,
+		acctid,
+		userid,
+		username
+	}
+	
+	static enum BNA_ACCT {
+		  acctId,
+		  acctName,
+		  csmName,
+		  salesLead,
+		  tier,
+		  state,
+		  region,
+		  supportLevel,
+		  numOfEmp,
+		  arr,
+		  stage,
+		  dhour,
+		  mday,
+		  yweek,
+		  ymonth,
+		  quarter,
+		  yyear,
+		  contractedDT,
+		  contractedts,
+		  renewalDT,
+		  churnDT,
+		  firstDT,
+		  lastDT,
+		  datekey,
+		  custid
+	}
 	
 	static enum HOST_ACCT_V3 {
 		acctId,
