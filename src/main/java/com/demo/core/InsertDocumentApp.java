@@ -47,7 +47,7 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "10.0.9.15"; // Haley-21, Curtls-23, Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "localhost"; // Haley-21, Curtls-23, Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
 	private static final String dbName = "bow-5229f0663004e751ecdf841c"; //demo "bow-5229f0663004e751ecdf841c"; //brightidea "bow-5229f0663004e751ecdf8425"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
@@ -318,29 +318,8 @@ public class InsertDocumentApp {
 
 	@Before
 	public void setup() {
-
-		try {
-			Mongo mongo = new Mongo(ipAddr, port);
-			DB db = mongo.getDB(dbName);
-			
-			// dbName
-//			db.dropDatabase();
-//			mongo.getDB(dbName);
-			// set customer object
-			DBCollection table = db.getCollection("customer");
-			table.drop();
-			table = db.getCollection("customer");
-			
-			BasicDBObject mydbObject = new BasicDBObject();
-			mydbObject.put("_id", new ObjectId(dbName.replaceFirst("bow-", "")));
-			
-			table.insert(mydbObject);
-			
-		} catch (UnknownHostException e) {
-			e.printStackTrace();
-		} catch (MongoException e) {
-			e.printStackTrace();
-		}
+		
+		defaultCustomerObject();
 		
 		AcctDates = new HashMap<String, FirstLastEvent>();
 		UserDates = new HashMap<String, FirstLastEvent>();
@@ -362,6 +341,94 @@ public class InsertDocumentApp {
 		acctInteractions = new HashMap<String, LinkedHashSet<Interaction>>();
 		acctFeatureReqs = new HashMap<String, LinkedHashSet<FeatureReq>>();
 		
+	}
+	
+	void defaultCustomerObject() {
+
+		try {
+			Mongo mongo = new Mongo(ipAddr, port);
+			DB db = mongo.getDB(dbName);
+			
+			// dbName
+//			db.dropDatabase();
+//			mongo.getDB(dbName);
+			// set customer object
+			DBCollection table = db.getCollection("customer");
+			table.drop();
+			table = db.getCollection("customer");
+			
+			BasicDBObject mydbObject = new BasicDBObject();
+			mydbObject.put("_id", new ObjectId(dbName.replaceFirst("bow-", "")));
+			mydbObject.put("accounts", new LinkedHashSet<String>());
+			mydbObject.put("projectOutcomeList", new LinkedHashSet<String>());
+			mydbObject.put("projectStatusList", new LinkedHashSet<String>());
+			mydbObject.put("projects", new LinkedHashSet<String>());
+			mydbObject.put("users", new LinkedHashSet<String>());
+			
+			LinkedHashSet<String> chList = new LinkedHashSet<String>();
+			chList.add("Direct");
+			chList.add("Online");
+			chList.add("Affiliate");
+			chList.add("Reseller");
+			mydbObject.put("channelList", chList);
+			
+			LinkedHashSet<String> inList = new LinkedHashSet<String>();
+			inList.add("Manufacturing");
+			inList.add("Banking");
+			inList.add("Chemical");
+			inList.add("Consumer Products");
+			inList.add("Telecommunications");
+			inList.add("Healthcare");
+			mydbObject.put("industryList", inList);
+			
+			LinkedHashSet<String> rgList = new LinkedHashSet<String>();
+			rgList.add("East");
+			rgList.add("West");
+			rgList.add("Central");
+			rgList.add("South");
+			rgList.add("North");
+			mydbObject.put("regionList", rgList);
+			
+			LinkedHashSet<String> sgList = new LinkedHashSet<String>();
+			sgList.add("Trial");
+			sgList.add("Proposal");
+			sgList.add("Negotiation");
+			sgList.add("Closed - Won");
+			sgList.add("Closed - Lost");
+			sgList.add("Deployment");
+			sgList.add("Deployed");
+			mydbObject.put("stageList", sgList);
+			
+			LinkedHashSet<String> tiList = new LinkedHashSet<String>();
+			tiList.add("Tier 1");
+			tiList.add("Tier 2");
+			tiList.add("Tier 3");
+			mydbObject.put("tierList", tiList);
+			
+			mydbObject.put("active", true);
+			mydbObject.put("created", new Date());
+			mydbObject.put("description", "Makers of the best darn enterprise SaaS software you can buy!");
+			mydbObject.put("name", "Amazing Enterprise SaaS Company");
+			mydbObject.put("tenantId", "amazingsaas.bluenose.com");
+			mydbObject.put("versionTimestamp", new Date());
+			
+			table.insert(mydbObject);
+			chList.clear();
+			chList = null;
+			inList.clear();
+			inList = null;
+			rgList.clear();
+			rgList = null;
+			sgList.clear();
+			sgList = null;
+			tiList.clear();
+			tiList = null;
+			
+		} catch (UnknownHostException e) {
+			e.printStackTrace();
+		} catch (MongoException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	@After
@@ -808,6 +875,7 @@ public class InsertDocumentApp {
 	
 	void insertGeneralAccountObject(String srcFile, int custType) throws Exception {
 
+		int noCHIRecords = 0;
 		try {
 			Mongo mongo = new Mongo(ipAddr, port);
 			DB db = mongo.getDB(dbName);
@@ -923,7 +991,7 @@ public class InsertDocumentApp {
 				String acctId = acct.getAcctId().toLowerCase();
 				LinkedHashSet<Health> hscores = acctsHScores.get(acctId);
 				if (hscores == null || hscores.isEmpty()) {
-					System.out.printf("no hscore for account %s\n", acctId);
+					noCHIRecords++;
 				}
 				else {
 					// TODO:: filter out all CHI score if the date passed churn date
@@ -932,9 +1000,16 @@ public class InsertDocumentApp {
 					for (Health score : hscores) {
 						if (acct.isChurn() && score.getCreated().before(usageDateFormat.parse(acct.getChurnDT().replaceAll("-", ""))))
 							modifiedScores.add(score);
+						else if (acct.isChurn() == false && score.getCreated().before(usageDateFormat.parse(acct.getLastDate().replaceAll("-", ""))))
+							modifiedScores.add(score);
+						else
+							System.out.printf("score created date=%s\tchurn date=%s\n", score.getCreated(), acct.getChurnDT());
 					}
 					
 					mydbObject.put("healthScores", modifiedScores);
+					if (modifiedScores.isEmpty()) {
+						noCHIRecords++;
+					}
 				}
 				LinkedHashSet<Ticket> tickets = acctTickets.get(acctId);
 				if (tickets != null && tickets.isEmpty() == false)
@@ -977,6 +1052,8 @@ public class InsertDocumentApp {
 			
 			br.close();
 
+			System.out.printf("number: %d of account without CHI scores\n", noCHIRecords);
+			
 		} catch (UnknownHostException e) {
 			e.printStackTrace(System.out);
 		} catch (MongoException e) {
