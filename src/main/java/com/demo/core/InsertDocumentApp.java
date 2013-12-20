@@ -47,7 +47,7 @@ public class InsertDocumentApp {
 	private static Map<String, FirstLastEvent> UserDates = null;
 	private static Map<String, AcctDates> ChurnRenewalDates = null;
 
-	private static final String ipAddr = "localhost"; // Haley-21, Curtls-23, Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
+	private static final String ipAddr = "10.0.9.21"; // Haley-21, Curtls-23, Sameer-24 Dem-13 miles-26 todd-15 "ec2-54-214-129-200.us-west-2.compute.amazonaws.com"; //"10.0.9.2"; //"ec2-23-22-156-75.compute-1.amazonaws.com";
 	private static final int port = 27017; //37017; // 27017; //  
 	//TODO:: fa8e12345678900000000006 for Todd's cloudPassage; fa8e12345678900000000007 for Todd's new BrightIdea
 	private static final String dbName = "bow-5229f0663004e751ecdf841c"; //demo "bow-5229f0663004e751ecdf841c"; //brightidea "bow-5229f0663004e751ecdf8425"; // "bow-replicon"; //"bow-brightidea"; // "bow-fa8e12345678900000000001"; //"bow-fa8e12345678900000000001"; //"bow-replicon"; //"bow-bna"; // "bow-fa8e12345678900000000000"; // "bow-openvpn"; //
@@ -74,7 +74,6 @@ public class InsertDocumentApp {
 	private static SimpleDateFormat sFormat = new SimpleDateFormat("yyyyMMdd");
 	private static DecimalFormat dFormat = new DecimalFormat("################.##");
 	private static SimpleDateFormat usageDateFormat = new SimpleDateFormat("yyyyMMdd"); //"yyyy-MM-dd hh:mm:ss.SSS");
-	private static SimpleDateFormat usageDashDateFormat = new SimpleDateFormat("yyyy-MM-dd");
 	private static SimpleDateFormat usageMonthFormat = new SimpleDateFormat("yyyyMM"); //"yyyy-MM-dd hh:mm:ss.SSS");
 	private static SimpleDateFormat usageFullDateFormat = new SimpleDateFormat("yyyyMMdd hh:mm:ss");
 	private static SimpleDateFormat usageHourFormat = new SimpleDateFormat("yyyyMMdd hh");
